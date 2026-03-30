@@ -30,8 +30,7 @@ function createAdminWindow() {
 
 function createTerminalWindow() {
   terminalWindow = new BrowserWindow({
-    width: 800,
-    height: 900,
+    fullscreen: true,
     title: "SecureAccess - Biometric Terminal",
     frame: false, 
     webPreferences: {

@@ -84,8 +84,9 @@ class GenerateMealTicket {
     const expiresAt = new Date();
     expiresAt.setHours(expiresAt.getHours() + 24);
 
-    // 4. Use renter's specific meal type if not provided or default
-    const finalMealType = mealType || registration.mealType || 'Non-Veggie';
+    // 4. Use renter's specific meal type from DB (source of truth for biometric identification)
+    // Preference: 1. DB record, 2. Provided arg (if any), 3. Catch-all default
+    const finalMealType = registration.mealType || mealType || 'Non-Veggie';
 
     const mealTicket = new MealTicket({
       registrationId,

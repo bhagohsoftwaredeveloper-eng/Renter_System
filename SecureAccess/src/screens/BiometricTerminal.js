@@ -17,7 +17,8 @@ import {
   Avatar, 
   useTheme,
   ActivityIndicator,
-  Divider
+  Divider,
+  Menu
 } from 'react-native-paper';
 import axios from 'axios';
 import { colors } from '../theme/colors';
@@ -33,8 +34,11 @@ export const BiometricTerminal = ({ onExit, registrationId = null }) => {
   const [mealTicket, setMealTicket] = useState(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [terminalError, setTerminalError] = useState(null);
-  const [mealType, setMealType] = useState('Non-Veggie');
+  const [menuVisible, setMenuVisible] = useState(false);
   const theme = useTheme();
+  
+  const openMenu = () => setMenuVisible(true);
+  const closeMenu = () => setMenuVisible(false);
   
   const scanAnim = useRef(new Animated.Value(0)).current;
   const glowAnim = useRef(new Animated.Value(0)).current;
@@ -141,7 +145,7 @@ export const BiometricTerminal = ({ onExit, registrationId = null }) => {
       // Use 127.0.0.1 instead of localhost for better compatibility
       await axios.post('http://127.0.0.1:5001/print', {
         renterName: ticket.renterName || 'Renter',
-        mealType: ticket.mealType || mealType,
+        mealType: ticket.mealType || 'Non-Veggie',
         date: new Date(ticket.createdAt || Date.now()).toLocaleString()
       });
       console.log('Print request sent successfully');
@@ -158,8 +162,8 @@ export const BiometricTerminal = ({ onExit, registrationId = null }) => {
       setTerminalError(null);
       const response = await axios.post(`${API_BASE_URL}/meal-tickets/generate`, {
         registrationId: registrationId,
-        mealType: mealType,
-        biometricTemplate: fmdTemplate // Passing the real capture template to backend
+        mealType: null, // Allow backend to resolve from registration
+        biometricTemplate: fmdTemplate 
       });
       setMealTicket(response.data);
       
@@ -169,7 +173,7 @@ export const BiometricTerminal = ({ onExit, registrationId = null }) => {
       // Add native alert for authorization confirmation
       Alert.alert(
         "MEAL TICKET AUTHORIZED",
-        `Identity Verified. Meal Ticket #${response.data.ticketNumber} has been successfully generated for ${mealType} remark.`,
+        `Identity Verified. Meal Ticket #${response.data.ticketNumber} has been successfully generated locally for ${response.data.mealType} diet.`,
         [{ text: "OK" }]
       );
       return response.data;
@@ -248,6 +252,36 @@ export const BiometricTerminal = ({ onExit, registrationId = null }) => {
         </View>
         
         <View style={styles.headerRight}>
+          <Menu
+            visible={menuVisible}
+            onDismiss={closeMenu}
+            anchor={
+              <IconButton 
+                icon="cog" 
+                size={20} 
+                onPress={openMenu} 
+                style={styles.settingsButton}
+                disabled={status === 'SCANNING'} 
+              />
+            }
+          >
+            <Menu.Item 
+              leadingIcon="printer" 
+              onPress={() => {
+                closeMenu();
+                handlePrintTicket({ renterName: 'TEST USER', mealType: 'Non-Veggie', createdAt: new Date() });
+              }} 
+              title="Test Printer" 
+            />
+            <Menu.Item 
+              leadingIcon="format-line-spacing" 
+              onPress={() => {
+                closeMenu();
+                handlePrintTicket({ renterName: 'FEED', mealType: 'NONE', createdAt: new Date() });
+              }} 
+              title="Feed Paper" 
+            />
+          </Menu>
           <Surface style={styles.statusLabel} elevation={0}>
             <View style={[styles.statusDot, { backgroundColor: status === 'SUCCESS' ? colors.emerald500 : colors.primary }]} />
             <Text variant="labelSmall" style={styles.statusLabelText}>
@@ -326,7 +360,7 @@ export const BiometricTerminal = ({ onExit, registrationId = null }) => {
                     )}
                     <Text variant="headlineSmall" style={styles.ticketNumber}>{mealTicket.ticketNumber}</Text>
                     <View style={styles.mealTypeBadge}>
-                      <Text variant="labelSmall" style={styles.mealTypeText}>REMARK: {mealTicket.mealType || mealType}</Text>
+                      <Text variant="labelSmall" style={styles.mealTypeText}>REMARK: {mealTicket.mealType}</Text>
                     </View>
                     <View style={styles.ticketFooter}>
                       <Text variant="labelSmall" style={styles.ticketValidity}>EXPIRES: {new Date(mealTicket.expiresAt).toLocaleTimeString()}</Text>
@@ -361,27 +395,6 @@ export const BiometricTerminal = ({ onExit, registrationId = null }) => {
             <View style={styles.actionsContainer}>
               {status === 'IDLE' ? (
                 <View style={{ gap: 16 }}>
-                  <View style={styles.mealTypeSelector}>
-                    <Text variant="labelSmall" style={{ color: colors.slate500, fontWeight: '800', marginBottom: 4 }}>SELECT REMARK:</Text>
-                    <View style={{ flexDirection: 'row', gap: 12 }}>
-                      <Button 
-                        mode={mealType === 'Veggie' ? 'contained' : 'outlined'} 
-                        onPress={() => setMealType('Veggie')}
-                        style={[styles.typeButton, mealType === 'Veggie' && { backgroundColor: colors.emerald600 }]}
-                        labelStyle={mealType === 'Veggie' ? { color: 'white' } : { color: colors.emerald600 }}
-                      >
-                        VEGGIE
-                      </Button>
-                      <Button 
-                        mode={mealType === 'Non-Veggie' ? 'contained' : 'outlined'} 
-                        onPress={() => setMealType('Non-Veggie')}
-                        style={[styles.typeButton, mealType === 'Non-Veggie' && { backgroundColor: colors.rose600 }]}
-                        labelStyle={mealType === 'Non-Veggie' ? { color: 'white' } : { color: colors.rose600 }}
-                      >
-                        NON-VEGGIE
-                      </Button>
-                    </View>
-                  </View>
                   <Button 
                     mode="contained" 
                     onPress={startScan} 
@@ -389,22 +402,6 @@ export const BiometricTerminal = ({ onExit, registrationId = null }) => {
                     contentStyle={styles.actionButtonContent}
                   >
                     INITIATE BIOMETRIC SCAN
-                  </Button>
-                  <Button 
-                    mode="outlined" 
-                    onPress={() => handlePrintTicket({ renterName: 'TEST USER', mealType: mealType, createdAt: new Date() })} 
-                    style={[styles.secondaryActionButton, { width: '100%', borderColor: colors.primary, marginBottom: 10 }]}
-                    icon="printer"
-                  >
-                    TEST PRINTER
-                  </Button>
-                  <Button 
-                    mode="outlined" 
-                    onPress={() => handlePrintTicket({ renterName: 'FEED', mealType: 'NONE', createdAt: new Date() })} 
-                    style={[styles.secondaryActionButton, { width: '100%', borderColor: colors.secondary }]}
-                    icon="format-line-spacing"
-                  >
-                    FEED PAPER
                   </Button>
                 </View>
               ) : status === 'SCANNING' ? (
@@ -538,6 +535,10 @@ const styles = StyleSheet.create({
   },
   exitButton: {
     backgroundColor: colors.slate100,
+  },
+  settingsButton: {
+    backgroundColor: colors.slate100,
+    marginRight: 4,
   },
   mainContent: {
     flex: 1,

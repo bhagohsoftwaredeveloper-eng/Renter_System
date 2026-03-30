@@ -87,6 +87,8 @@ export function Login() {
                   left={<TextInput.Icon icon={() => <User size={20} color={colors.slate500} />} />}
                   autoCapitalize="none"
                   style={styles.input}
+                  onSubmitEditing={handleLogin}
+                  returnKeyType="next"
                 />
               </View>
 
@@ -107,6 +109,8 @@ export function Login() {
                     />
                   }
                   style={styles.input}
+                  onSubmitEditing={handleLogin}
+                  returnKeyType="go"
                 />
               </View>
 
