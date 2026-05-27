@@ -1,10 +1,23 @@
 {
   "name": "backend",
-  "version": "1.0.0",
+  "version": "1.2.0",
   "description": "",
-  "main": "index.js",
+  "main": "server.js",
+  "bin": "server.js",
+  "pkg": {
+    "scripts": [
+      "src/**/*.js",
+      "server.js"
+    ],
+    "assets": [
+      ".env",
+      "init_db.sql",
+      "node_modules/axios/**/*"
+    ]
+  },
   "scripts": {
     "start": "node server.js",
+    "build:pkg": "pkg . --targets node18-win-x64 --output dist/server.exe",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
@@ -17,6 +30,11 @@
     "dotenv": "^17.3.1",
     "express": "^5.2.1",
     "jsonwebtoken": "^9.0.3",
-    "pg": "^8.20.0"
+    "multer": "^2.1.1",
+    "pg": "^8.20.0",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "pkg": "^5.8.1"
   }
 }

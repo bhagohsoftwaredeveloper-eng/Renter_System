@@ -1,9 +1,0 @@
-D:\BHAGOH PROJECT\Renter Systems\biometricbridge\obj\Debug\net9.0\BiometricBridge.csproj.AssemblyReference.cache
-D:\BHAGOH PROJECT\Renter Systems\biometricbridge\obj\Debug\net9.0\rpswa.dswa.cache.json
-D:\BHAGOH PROJECT\Renter Systems\biometricbridge\obj\Debug\net9.0\BiometricBridge.GeneratedMSBuildEditorConfig.editorconfig
-D:\BHAGOH PROJECT\Renter Systems\biometricbridge\obj\Debug\net9.0\BiometricBridge.AssemblyInfoInputs.cache
-D:\BHAGOH PROJECT\Renter Systems\biometricbridge\obj\Debug\net9.0\BiometricBridge.AssemblyInfo.cs
-D:\BHAGOH PROJECT\Renter Systems\biometricbridge\obj\Debug\net9.0\BiometricBridge.csproj.CoreCompileInputs.cache
-D:\BHAGOH PROJECT\Renter Systems\biometricbridge\obj\Debug\net9.0\BiometricBridge.MvcApplicationPartsAssemblyInfo.cs
-D:\BHAGOH PROJECT\Renter Systems\biometricbridge\obj\Debug\net9.0\BiometricBridge.MvcApplicationPartsAssemblyInfo.cache
-D:\BHAGOH PROJECT\Renter Systems\biometricbridge\obj\Debug\net9.0\BiometricBridge.sourcelink.json

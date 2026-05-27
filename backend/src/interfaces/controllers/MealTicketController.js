@@ -15,11 +15,37 @@ class MealTicketController {
       console.log(`[MealTicketController] Ticket generated: ${mealTicket.ticketNumber}`);
       res.status(201).json(mealTicket);
     } catch (err) {
-      console.error(err);
-      if (err.message.includes('not authorized') || err.message.includes('not found')) {
-        return res.status(403).json({ error: err.message });
+      console.error('[MealTicketController] Error caught:', err);
+      
+      const errorMsg = err.message || 'Database error';
+
+      // 1-meal-per-period limit reached -> 409 Conflict (distinct from auth errors
+      // so the terminal shows the specific "already claimed" message)
+      if (errorMsg.includes('already claimed')) {
+        console.log(`[MealTicketController] Sending 409 with error: "${errorMsg}"`);
+        return res.status(409).json({ error: errorMsg });
       }
-      res.status(500).json({ error: err.message || 'Database error' });
+
+      // Map identification/authorization/connectivity errors to 401/403
+      if (
+        errorMsg.includes('not authorized') || 
+        errorMsg.includes('not found') || 
+        errorMsg.includes('not recognized') || 
+        errorMsg.includes('failed') ||
+        errorMsg.includes('No enrolled fingerprints') ||
+        errorMsg.includes('Registrar Office') ||
+        errorMsg.includes('ECONNREFUSED') ||
+        errorMsg.includes('unreachable')
+      ) {
+        let userFriendlyMsg = errorMsg;
+        if (errorMsg.includes('ECONNREFUSED')) {
+          userFriendlyMsg = 'Biometric Bridge is unreachable. Please ensure the service is running.';
+        }
+        console.log(`[MealTicketController] Sending 403 with error: "${userFriendlyMsg}"`);
+        return res.status(403).json({ error: userFriendlyMsg });
+      }
+      
+      res.status(500).json({ error: errorMsg });
     }
   }
 

@@ -7,6 +7,16 @@ build/
 web-build/
 .expo/
 
+# Electron / app packaging output (NOT vendor SDKs under SecureAccess/lib or electron/bin)
+/SecureAccess/release/
+
+# .NET build output (NOT vendor libs under BiometricBridge/libs)
+/BiometricBridge/bin/
+/BiometricBridge/obj/
+
+# Root-level packaged installers
+/*.exe
+
 # Environment files
 .env
 .env.local

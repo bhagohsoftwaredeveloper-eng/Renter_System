@@ -22,6 +22,7 @@ import axios from 'axios';
 import { colors } from '../theme/colors';
 import { Table } from '../components/Table';
 import { usePermissions } from '../context/PermissionContext';
+import { useSnackbar } from '../context/SnackbarContext';
 import { PERMISSIONS, ROLES } from '../utils/permissions';
 
 import { API_BASE_URL } from '../utils/api';
@@ -48,7 +49,8 @@ export const UserManagement = () => {
   const [editingUserId, setEditingUserId] = useState(null);
   const [roleMenuVisible, setRoleMenuVisible] = useState(false);
   const theme = useTheme();
-  const { hasPermission, userRole, isAuthenticated } = usePermissions();
+  const { hasPermission, userRole, user, isAuthenticated } = usePermissions();
+  const { showSnackbar } = useSnackbar();
   const canManageUsers = hasPermission(PERMISSIONS.MANAGE_USERS);
 
   useEffect(() => {
@@ -76,7 +78,7 @@ export const UserManagement = () => {
 
   const handleSaveUser = async () => {
     if (!formData.fullname || !formData.username || (!isEditing && !formData.password)) {
-      Alert.alert('Validation Error', 'Please fill in all required fields.');
+      showSnackbar('Please fill in all required fields.', 'error');
       return;
     }
 
@@ -97,11 +99,11 @@ export const UserManagement = () => {
         }
         const response = await axios.put(`${API_URL}/${editingUserId}`, updateData);
         setUsers(prev => prev.map(u => u.id === editingUserId ? response.data : u));
-        Alert.alert('Success', 'User updated successfully!');
+        showSnackbar('User updated successfully.', 'success');
         
         await createAuditLog({
-          admin: users.find(u => u.username === userRole)?.name || userRole,
-          adminId: userRole,
+          admin: user?.name || userRole,
+          adminId: user?.username || userRole,
           type: 'User Update',
           details: `Updated user: ${formData.fullname}`,
           subDetails: `Role: ${formData.role}, Username: ${formData.username}`,
@@ -110,11 +112,11 @@ export const UserManagement = () => {
       } else {
         const response = await axios.post(API_URL, submissionData);
         setUsers(prev => [response.data, ...prev]);
-        Alert.alert('Success', 'User added successfully!');
+        showSnackbar('User added successfully.', 'success');
         
         await createAuditLog({
-          admin: users.find(u => u.username === userRole)?.name || userRole,
-          adminId: userRole,
+          admin: user?.name || userRole,
+          adminId: user?.username || userRole,
           type: 'User Creation',
           details: `Added new user: ${formData.fullname}`,
           subDetails: `Role: ${formData.role}, Username: ${formData.username}`,
@@ -124,7 +126,7 @@ export const UserManagement = () => {
       closeModal();
     } catch (error) {
       console.error('Error saving user:', error);
-      Alert.alert('Error', `Failed to ${isEditing ? 'update' : 'add'} user.`);
+      showSnackbar(`Failed to ${isEditing ? 'update' : 'add'} user.`, 'error');
     } finally {
       setIsSubmitting(false);
     }
@@ -142,12 +144,27 @@ export const UserManagement = () => {
           onPress: async () => {
             try {
               const userToDelete = users.find(u => u.id === id);
-              await axios.delete(`${API_URL}/${id}`);
-              setUsers(prev => prev.filter(u => u.id !== id));
+              const response = await axios.delete(`${API_URL}/${id}`);
               
+              if (response.data && response.data.success === false) {
+                if (response.data.code === 'HAS_TRANSACTIONS') {
+                  showSnackbar('User has existing audit logs and cannot be deleted.', 'error');
+                  return;
+                }
+                if (response.data.code === 'IS_ADMIN') {
+                  showSnackbar('The primary administrator account cannot be deleted.', 'error');
+                  return;
+                }
+                showSnackbar(response.data.error || 'Failed to delete user.', 'error');
+                return;
+              }
+
+              setUsers(prev => prev.filter(u => u.id !== id));
+              showSnackbar('User deleted.', 'success');
+
               await createAuditLog({
-                admin: users.find(u => u.username === userRole)?.name || userRole,
-                adminId: userRole,
+                admin: user?.name || userRole,
+                adminId: user?.username || userRole,
                 type: 'User Deletion',
                 details: `Deleted user: ${userToDelete?.name || id}`,
                 subDetails: `Username: ${userToDelete?.username || 'unknown'}`,
@@ -155,7 +172,7 @@ export const UserManagement = () => {
               });
             } catch (error) {
               console.error('Error deleting user:', error);
-              Alert.alert('Error', 'Failed to delete user.');
+              showSnackbar('Failed to delete user due to a communication error.', 'error');
             }
           }
         }

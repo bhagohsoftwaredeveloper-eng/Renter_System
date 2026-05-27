@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, Image, ScrollView, Dimensions, KeyboardAvoidingView, Platform, TouchableOpacity } from 'react-native';
-import { TextInput, Button, Card, HelperText, useTheme } from 'react-native-paper';
+import { TextInput, Button, Card, HelperText, useTheme, IconButton } from 'react-native-paper';
 import { colors } from '../theme/colors';
 import { usePermissions } from '../context/PermissionContext';
 import axios from 'axios';
@@ -58,11 +58,14 @@ export function Login() {
     }
   };
 
+  const isElectron = Platform.OS === 'web' && (window.electron || (typeof process !== 'undefined' && process.versions && process.versions.electron));
+
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={styles.container}
     >
+      <View style={{ height: 48 }} />
       <ScrollView contentContainerStyle={styles.scrollContainer} showsVerticalScrollIndicator={false}>
         <View style={[styles.loginCardContainer, isLargeScreen && styles.largeScreenContainer]}>
           <Card style={styles.card} elevation={4}>
@@ -70,7 +73,7 @@ export function Login() {
               <View style={styles.logoCircle}>
                 <LogIn color={colors.white} size={32} />
               </View>
-              <Text style={styles.title}>SecureAccess</Text>
+              <Text style={styles.title}>ServeQueue</Text>
               <Text style={styles.subtitle}>Enter your credentials to access the dashboard</Text>
             </View>
 
@@ -144,7 +147,7 @@ export function Login() {
           </Card>
           
           <View style={styles.bottomBranding}>
-            <Text style={styles.brandingText}>© 2024 SecureAccess Systems. All rights reserved.</Text>
+            <Text style={styles.brandingText}>© 2024 ServeQueue Systems. All rights reserved.</Text>
           </View>
         </View>
       </ScrollView>
@@ -156,6 +159,23 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.slate50,
+  },
+  dragRegion: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 48,
+    zIndex: 100,
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+  },
+  windowControls: {
+    flexDirection: 'row',
+  },
+  windowButton: {
+    margin: 0,
   },
   scrollContainer: {
     flexGrow: 1,

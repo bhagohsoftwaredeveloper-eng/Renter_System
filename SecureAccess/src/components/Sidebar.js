@@ -22,7 +22,7 @@ const MENU_ITEMS = [
 
 import { API_BASE_URL } from '../utils/api';
 
-export const Sidebar = ({ currentScreen, onNavigate }) => {
+export const Sidebar = ({ currentScreen, onNavigate, isCollapsed }) => {
   const theme = useTheme();
   const { hasPermission, userRole, isAuthenticated } = usePermissions();
   const [registrationCount, setRegistrationCount] = useState(null);
@@ -64,30 +64,30 @@ export const Sidebar = ({ currentScreen, onNavigate }) => {
 
   return (
     <ScrollView style={styles.container}>
-      <Drawer.Section title="Main Menu">
+      <Drawer.Section title={isCollapsed ? undefined : "Main Menu"}>
         {filteredMenuItems.map((item, index) => {
           if (item.section) {
             // Only show section header if there are following items in that section
             const nextItemsInSection = filteredMenuItems.slice(index + 1);
-            if (nextItemsInSection.length === 0 || nextItemsInSection[0].section) return null;
+            if (nextItemsInSection.length === 0 || nextItemsInSection[0].section || isCollapsed) return null;
             return (
               <Drawer.Section key={index} title={item.section} showDivider={false} />
             );
           }
           
           const isActive = currentScreen === item.screen || (currentScreen === 'Overview' && item.screen === 'Dashboard');
-          
+
           return (
             <Drawer.Item
               key={index}
-              label={item.label}
+              label={isCollapsed ? "" : item.label}
               icon={item.icon}
               active={isActive}
               onPress={() => onNavigate(item.screen)}
-              right={() => item.badge ? (
+              right={() => (item.badge && !isCollapsed) ? (
                 <Badge size={20} style={styles.badge}>{item.badge}</Badge>
               ) : null}
-              style={styles.drawerItem}
+              style={[styles.drawerItem, isCollapsed && { paddingHorizontal: 0 }]}
             />
           );
         })}

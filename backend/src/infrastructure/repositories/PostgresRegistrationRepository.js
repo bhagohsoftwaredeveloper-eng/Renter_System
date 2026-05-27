@@ -23,8 +23,8 @@ class PostgresRegistrationRepository extends RegistrationRepository {
       `INSERT INTO registrations (
         name, first_name, last_name, email, student_phone, parent_phone, 
         room_no, floor_no, unit, imd, has_fingerprint, biometric_template,
-        status, initials, date, can_generate_meal_ticket, meal_type
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) 
+        status, initials, date, can_generate_meal_ticket, meal_type, registration_number
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18) 
       RETURNING *`,
       [
         registration.name,
@@ -43,17 +43,25 @@ class PostgresRegistrationRepository extends RegistrationRepository {
         registration.initials,
         registration.date,
         registration.canGenerateMealTicket,
-        registration.mealType
+        registration.mealType,
+        registration.registrationNumber
       ]
     );
     return this._mapToEntity(rows[0]);
   }
 
-  async updateStatus(id, status) {
-    const { rows } = await this.db.query(
-      'UPDATE registrations SET status = $1 WHERE id = $2 RETURNING *',
-      [status, id]
-    );
+  async updateStatus(id, status, canGenerateMealTicket) {
+    let query = 'UPDATE registrations SET status = $1';
+    let params = [status, id];
+    
+    if (canGenerateMealTicket !== undefined) {
+      query += ', can_generate_meal_ticket = $3';
+      params.push(canGenerateMealTicket);
+    }
+    
+    query += ' WHERE id = $2 RETURNING *';
+    
+    const { rows } = await this.db.query(query, params);
     if (rows.length === 0) return null;
     return this._mapToEntity(rows[0]);
   }
@@ -98,14 +106,15 @@ class PostgresRegistrationRepository extends RegistrationRepository {
         name = $1, first_name = $2, last_name = $3, email = $4, 
         student_phone = $5, parent_phone = $6, room_no = $7, 
         floor_no = $8, unit = $9, imd = $10, initials = $11,
-        has_fingerprint = $12, biometric_template = $13, meal_type = $14
-      WHERE id = $15 RETURNING *`,
+        has_fingerprint = $12, biometric_template = $13, meal_type = $14, registration_number = $15
+      WHERE id = $16 RETURNING *`,
       [
         data.name, data.firstName, data.lastName, data.email,
         data.studentPhone, data.parentPhone, data.roomNo,
         data.floorNo, data.unit, data.imd, data.initials,
         data.hasFingerprint, data.biometricTemplate,
         data.mealType,
+        data.registrationNumber,
         id
       ]
     );
@@ -134,8 +143,28 @@ class PostgresRegistrationRepository extends RegistrationRepository {
       canGenerateMealTicket: row.can_generate_meal_ticket,
       mealTicketExpirationDate: row.meal_ticket_expiration_date,
       mealType: row.meal_type,
+      registrationNumber: row.registration_number,
       createdAt: row.created_at
     });
+  }
+  async getByRegistrationNumber(registrationNumber) {
+    const { rows } = await this.db.query('SELECT * FROM registrations WHERE registration_number = $1', [registrationNumber]);
+    if (rows.length === 0) return null;
+    return this._mapToEntity(rows[0]);
+  }
+
+  async countTransactionsByRegistrationId(id) {
+    const { rows } = await this.db.query(
+      'SELECT COUNT(*) as count FROM meal_tickets WHERE registration_id = $1',
+      [id]
+    );
+    return parseInt(rows[0].count);
+  }
+
+  async getByName(name) {
+    const { rows } = await this.db.query('SELECT * FROM registrations WHERE name = $1', [name]);
+    if (rows.length === 0) return null;
+    return this._mapToEntity(rows[0]);
   }
 }
 

@@ -1,0 +1,160 @@
+[2026-03-31T03:13:46.105Z] [GenerateMealTicket] Attempting identification...
+[2026-03-31T03:13:46.167Z] [GenerateMealTicket] Sending 6 candidates to Bridge.
+[2026-03-31T03:13:46.262Z] [GenerateMealTicket] Bridge Response: status=SUCCESS, matchedIndex=0
+[2026-03-31T03:13:46.263Z] [GenerateMealTicket] Identified user: joshua mercado (ID: 9)
+[2026-03-31T03:17:09.246Z] [GenerateMealTicket] Attempting identification...
+[2026-03-31T03:17:09.337Z] [GenerateMealTicket] Sending 6 candidates to Bridge.
+[2026-03-31T03:17:09.462Z] [GenerateMealTicket] Bridge Response: status=SUCCESS, matchedIndex=0
+[2026-03-31T03:17:09.463Z] [GenerateMealTicket] Identified user: joshua mercado (ID: 9)
+[2026-03-31T03:21:16.561Z] [GenerateMealTicket] Attempting identification...
+[2026-03-31T03:21:16.567Z] [GenerateMealTicket] Sending 6 candidates to Bridge.
+[2026-03-31T03:21:16.578Z] [GenerateMealTicket] Bridge Response: status=SUCCESS, matchedIndex=0
+[2026-03-31T03:21:16.580Z] [GenerateMealTicket] Identified user: joshua mercado (ID: 9)
+[2026-03-31T03:26:06.585Z] [GenerateMealTicket] Attempting identification...
+[2026-03-31T03:26:06.758Z] [GenerateMealTicket] Sending 6 candidates to Bridge.
+[2026-03-31T03:26:06.763Z] [GenerateMealTicket] Bridge Response: status=SUCCESS, matchedIndex=0
+[2026-03-31T03:26:06.763Z] [GenerateMealTicket] Identified user: joshua mercado (ID: 9)
+[2026-03-31T03:34:41.848Z] [GenerateMealTicket] Attempting identification...
+[2026-03-31T03:34:41.928Z] [GenerateMealTicket] Sending 6 candidates to Bridge.
+[2026-03-31T03:34:41.935Z] [GenerateMealTicket] Bridge Response: status=SUCCESS, matchedIndex=0
+[2026-03-31T03:34:41.937Z] [GenerateMealTicket] Identified user: joshua mercado (ID: 9)
+[2026-03-31T03:37:16.376Z] [GenerateMealTicket] Attempting identification...
+[2026-03-31T03:37:16.448Z] [GenerateMealTicket] Sending 6 candidates to Bridge.
+[2026-03-31T03:37:16.453Z] [GenerateMealTicket] Bridge Response: status=SUCCESS, matchedIndex=0
+[2026-03-31T03:37:16.455Z] [GenerateMealTicket] Identified user: joshua mercado (ID: 9)
+[2026-03-31T03:42:12.759Z] [GenerateMealTicket] Attempting identification...
+[2026-03-31T03:42:12.827Z] [GenerateMealTicket] Sending 6 candidates to Bridge.
+[2026-03-31T03:42:12.854Z] [GenerateMealTicket] Bridge Response: status=SUCCESS, matchedIndex=0
+[2026-03-31T03:42:12.855Z] [GenerateMealTicket] Identified user: joshua mercado (ID: 9)
+[2026-03-31T03:46:53.412Z] [GenerateMealTicket] Attempting identification...
+[2026-03-31T03:46:53.481Z] [GenerateMealTicket] Sending 6 candidates to Bridge.
+[2026-03-31T03:46:53.488Z] [GenerateMealTicket] Bridge Response: status=SUCCESS, matchedIndex=0
+[2026-03-31T03:46:53.489Z] [GenerateMealTicket] Identified user: joshua mercado (ID: 9)
+[2026-03-31T03:47:04.355Z] [GenerateMealTicket] Attempting identification...
+[2026-03-31T03:47:04.420Z] [GenerateMealTicket] Sending 6 candidates to Bridge.
+[2026-03-31T03:47:04.428Z] [GenerateMealTicket] Bridge Response: status=SUCCESS, matchedIndex=0
+[2026-03-31T03:47:04.429Z] [GenerateMealTicket] Identified user: joshua mercado (ID: 9)
+[2026-03-31T03:47:13.900Z] [GenerateMealTicket] Attempting identification...
+[2026-03-31T03:47:13.904Z] [GenerateMealTicket] Sending 6 candidates to Bridge.
+[2026-03-31T03:47:13.915Z] [GenerateMealTicket] Bridge Response: status=SUCCESS, matchedIndex=0
+[2026-03-31T03:47:13.916Z] [GenerateMealTicket] Identified user: joshua mercado (ID: 9)
+[2026-03-31T03:49:46.754Z] [GenerateMealTicket] Attempting identification...
+[2026-03-31T03:49:46.813Z] [GenerateMealTicket] Sending 6 candidates to Bridge.
+[2026-03-31T03:49:46.822Z] [GenerateMealTicket] Bridge Response: status=SUCCESS, matchedIndex=0
+[2026-03-31T03:49:46.823Z] [GenerateMealTicket] Identified user: joshua mercado (ID: 9)
+[2026-03-31T03:50:54.221Z] [GenerateMealTicket] Attempting identification...
+[2026-03-31T03:50:54.385Z] [GenerateMealTicket] Sending 6 candidates to Bridge.
+[2026-03-31T03:50:54.393Z] [GenerateMealTicket] Bridge Response: status=SUCCESS, matchedIndex=0
+[2026-03-31T03:50:54.394Z] [GenerateMealTicket] Identified user: joshua mercado (ID: 9)
+[2026-03-31T03:57:10.320Z] [GenerateMealTicket] Attempting identification...
+[2026-03-31T03:57:10.324Z] [GenerateMealTicket] Sending 6 candidates to Bridge.
+[2026-03-31T03:57:10.334Z] [GenerateMealTicket] Bridge Response: status=SUCCESS, matchedIndex=0
+[2026-03-31T03:57:10.335Z] [GenerateMealTicket] Identified user: joshua mercado (ID: 9)
+[2026-03-31T03:57:42.480Z] [GenerateMealTicket] Attempting identification...
+[2026-03-31T03:57:42.484Z] [GenerateMealTicket] Sending 6 candidates to Bridge.
+[2026-03-31T03:57:42.493Z] [GenerateMealTicket] Bridge Response: status=SUCCESS, matchedIndex=0
+[2026-03-31T03:57:42.494Z] [GenerateMealTicket] Identified user: joshua mercado (ID: 9)
+[2026-03-31T03:58:32.275Z] [GenerateMealTicket] Attempting identification...
+[2026-03-31T03:58:32.399Z] [GenerateMealTicket] Sending 6 candidates to Bridge.
+[2026-03-31T03:58:32.481Z] [GenerateMealTicket] Bridge Response: status=SUCCESS, matchedIndex=0
+[2026-03-31T03:58:32.482Z] [GenerateMealTicket] IDENTIFIED_SUCCESS: joshua mercado (ID: 9)
+[2026-03-31T03:58:32.482Z] [GenerateMealTicket] Checking authorization for RID 9. canGenerateMealTicket: false
+[2026-03-31T03:58:32.483Z] [GenerateMealTicket] RID 9 is not authorized for meal tickets (canGenerateMealTicket: false)
+[2026-03-31T03:59:46.908Z] [GenerateMealTicket] Attempting identification...
+[2026-03-31T03:59:46.913Z] [GenerateMealTicket] Sending 6 candidates to Bridge.
+[2026-03-31T03:59:46.923Z] [GenerateMealTicket] Bridge Response: status=SUCCESS, matchedIndex=0
+[2026-03-31T03:59:46.924Z] [GenerateMealTicket] IDENTIFIED_SUCCESS: joshua mercado (ID: 9)
+[2026-03-31T03:59:46.924Z] [GenerateMealTicket] Checking authorization for RID 9. canGenerateMealTicket: false
+[2026-03-31T03:59:46.925Z] [GenerateMealTicket] RID 9 is not authorized for meal tickets (canGenerateMealTicket: false)
+[2026-03-31T04:00:51.655Z] [GenerateMealTicket] Attempting identification...
+[2026-03-31T04:00:51.714Z] [GenerateMealTicket] Sending 6 candidates to Bridge.
+[2026-03-31T04:00:51.801Z] [GenerateMealTicket] Bridge Response: status=SUCCESS, matchedIndex=0
+[2026-03-31T04:00:51.802Z] [GenerateMealTicket] IDENTIFIED_SUCCESS: joshua mercado (ID: 9)
+[2026-03-31T04:00:51.802Z] [GenerateMealTicket] Checking authorization for RID 9. canGenerateMealTicket: false
+[2026-03-31T04:00:51.803Z] [GenerateMealTicket] RID 9 is not authorized for meal tickets (canGenerateMealTicket: false)
+[2026-03-31T04:01:29.677Z] [GenerateMealTicket] Attempting identification...
+[2026-03-31T04:01:29.741Z] [GenerateMealTicket] Sending 6 candidates to Bridge.
+[2026-03-31T04:01:29.746Z] [GenerateMealTicket] Bridge Response: status=SUCCESS, matchedIndex=0
+[2026-03-31T04:01:29.747Z] [GenerateMealTicket] IDENTIFIED_SUCCESS: joshua mercado (ID: 9)
+[2026-03-31T04:01:29.747Z] [GenerateMealTicket] Checking authorization for RID 9. canGenerateMealTicket: true
+[2026-03-31T04:01:29.748Z] [GenerateMealTicket] Generating ticket number for RID 9...
+[2026-03-31T04:01:29.749Z] [GenerateMealTicket] Saving ticket MT-20260331-6NJY for RID 9...
+[2026-03-31T04:01:29.780Z] [GenerateMealTicket] Ticket MT-20260331-6NJY saved successfully.
+[2026-03-31T04:03:31.037Z] [GenerateMealTicket] Attempting identification...
+[2026-03-31T04:03:31.042Z] [GenerateMealTicket] Sending 6 candidates to Bridge.
+[2026-03-31T04:03:31.052Z] [GenerateMealTicket] Bridge Response: status=SUCCESS, matchedIndex=0
+[2026-03-31T04:03:31.053Z] [GenerateMealTicket] IDENTIFIED_SUCCESS: joshua mercado (ID: 9)
+[2026-03-31T04:03:31.054Z] [GenerateMealTicket] Checking authorization for RID 9. canGenerateMealTicket: false
+[2026-03-31T04:03:31.054Z] [GenerateMealTicket] RID 9 is not authorized for meal tickets (canGenerateMealTicket: false)
+[2026-03-31T04:04:23.597Z] [GenerateMealTicket] Attempting identification...
+[2026-03-31T04:04:23.661Z] [GenerateMealTicket] Sending 6 candidates to Bridge.
+[2026-03-31T04:04:23.669Z] [GenerateMealTicket] Bridge Response: status=SUCCESS, matchedIndex=0
+[2026-03-31T04:04:23.669Z] [GenerateMealTicket] IDENTIFIED_SUCCESS: joshua mercado (ID: 9)
+[2026-03-31T04:04:23.670Z] [GenerateMealTicket] Checking authorization for RID 9. canGenerateMealTicket: false
+[2026-03-31T04:04:23.670Z] [GenerateMealTicket] RID 9 is not authorized for meal tickets (canGenerateMealTicket: false)
+[2026-03-31T04:07:14.334Z] [GenerateMealTicket] Attempting identification...
+[2026-03-31T04:07:14.402Z] [GenerateMealTicket] Sending 6 candidates to Bridge.
+[2026-03-31T04:07:14.410Z] [GenerateMealTicket] Bridge Response: status=SUCCESS, matchedIndex=0
+[2026-03-31T04:07:14.411Z] [GenerateMealTicket] IDENTIFIED_SUCCESS: joshua mercado (ID: 9)
+[2026-03-31T04:07:14.411Z] [GenerateMealTicket] Checking authorization for RID 9. canGenerateMealTicket: false
+[2026-03-31T04:07:14.412Z] [GenerateMealTicket] RID 9 is not authorized for meal tickets (canGenerateMealTicket: false)
+[2026-03-31T04:08:55.895Z] [GenerateMealTicket] Attempting identification...
+[2026-03-31T04:08:55.977Z] [GenerateMealTicket] Sending 6 candidates to Bridge.
+[2026-03-31T04:08:55.983Z] [GenerateMealTicket] Bridge Response: status=SUCCESS, matchedIndex=0
+[2026-03-31T04:08:55.984Z] [GenerateMealTicket] IDENTIFIED_SUCCESS: joshua mercado (ID: 9)
+[2026-03-31T04:08:55.985Z] [GenerateMealTicket] Checking authorization for RID 9. canGenerateMealTicket: false
+[2026-03-31T04:08:55.986Z] [GenerateMealTicket] RID 9 is not authorized for meal tickets (canGenerateMealTicket: false)
+[2026-03-31T04:09:22.576Z] [GenerateMealTicket] Attempting identification...
+[2026-03-31T04:09:22.653Z] [GenerateMealTicket] Sending 6 candidates to Bridge.
+[2026-03-31T04:09:22.660Z] [GenerateMealTicket] Bridge Response: status=SUCCESS, matchedIndex=0
+[2026-03-31T04:09:22.661Z] [GenerateMealTicket] IDENTIFIED_SUCCESS: joshua mercado (ID: 9)
+[2026-03-31T04:09:22.662Z] [GenerateMealTicket] Checking authorization for RID 9. canGenerateMealTicket: false
+[2026-03-31T04:09:22.662Z] [GenerateMealTicket] RID 9 is not authorized for meal tickets (canGenerateMealTicket: false)
+[2026-03-31T04:10:34.886Z] [GenerateMealTicket] Attempting identification...
+[2026-03-31T04:10:34.948Z] [GenerateMealTicket] Sending 6 candidates to Bridge.
+[2026-03-31T04:10:34.954Z] [GenerateMealTicket] Bridge Response: status=SUCCESS, matchedIndex=0
+[2026-03-31T04:10:34.955Z] [GenerateMealTicket] IDENTIFIED_SUCCESS: joshua mercado (ID: 9)
+[2026-03-31T04:10:34.956Z] [GenerateMealTicket] Checking authorization for RID 9. canGenerateMealTicket: true
+[2026-03-31T04:10:34.956Z] [GenerateMealTicket] Generating ticket number for RID 9...
+[2026-03-31T04:10:34.957Z] [GenerateMealTicket] Saving ticket MT-20260331-4E4X for RID 9...
+[2026-03-31T04:10:34.979Z] [GenerateMealTicket] Ticket MT-20260331-4E4X saved successfully.
+[2026-03-31T04:10:55.941Z] [GenerateMealTicket] Attempting identification...
+[2026-03-31T04:10:55.946Z] [GenerateMealTicket] Sending 6 candidates to Bridge.
+[2026-03-31T04:10:55.956Z] [GenerateMealTicket] Bridge Response: status=SUCCESS, matchedIndex=0
+[2026-03-31T04:10:55.957Z] [GenerateMealTicket] IDENTIFIED_SUCCESS: joshua mercado (ID: 9)
+[2026-03-31T04:10:55.958Z] [GenerateMealTicket] Checking authorization for RID 9. canGenerateMealTicket: true
+[2026-03-31T04:10:55.959Z] [GenerateMealTicket] Generating ticket number for RID 9...
+[2026-03-31T04:10:55.960Z] [GenerateMealTicket] Saving ticket MT-20260331-ICSR for RID 9...
+[2026-03-31T04:10:55.993Z] [GenerateMealTicket] Ticket MT-20260331-ICSR saved successfully.
+[2026-03-31T04:11:07.009Z] [GenerateMealTicket] Attempting identification...
+[2026-03-31T04:11:07.013Z] [GenerateMealTicket] Sending 6 candidates to Bridge.
+[2026-03-31T04:11:07.021Z] [GenerateMealTicket] Bridge Response: status=SUCCESS, matchedIndex=0
+[2026-03-31T04:11:07.022Z] [GenerateMealTicket] IDENTIFIED_SUCCESS: joshua mercado (ID: 9)
+[2026-03-31T04:11:07.022Z] [GenerateMealTicket] Checking authorization for RID 9. canGenerateMealTicket: false
+[2026-03-31T04:11:07.023Z] [GenerateMealTicket] RID 9 is not authorized for meal tickets (canGenerateMealTicket: false)
+[2026-03-31T04:35:16.636Z] [GenerateMealTicket] Attempting identification...
+[2026-03-31T04:35:16.797Z] [GenerateMealTicket] Sending 6 candidates to Bridge.
+[2026-03-31T04:35:16.801Z] [GenerateMealTicket] Bridge Response: status=SUCCESS, matchedIndex=0
+[2026-03-31T04:35:16.802Z] [GenerateMealTicket] IDENTIFIED_SUCCESS: joshua mercado (ID: 9)
+[2026-03-31T04:35:16.803Z] [GenerateMealTicket] Checking authorization for RID 9. canGenerateMealTicket: false
+[2026-03-31T04:35:16.804Z] [GenerateMealTicket] RID 9 is not authorized for meal tickets (canGenerateMealTicket: false)
+[2026-03-31T04:38:24.923Z] [GenerateMealTicket] Attempting identification...
+[2026-03-31T04:38:24.981Z] [GenerateMealTicket] Sending 6 candidates to Bridge.
+[2026-03-31T04:38:24.998Z] [GenerateMealTicket] Bridge Response: status=SUCCESS, matchedIndex=5
+[2026-03-31T04:38:24.999Z] [GenerateMealTicket] IDENTIFIED_SUCCESS: jhazon enanoria (ID: 1)
+[2026-03-31T04:38:25.000Z] [GenerateMealTicket] Checking authorization for RID 1. canGenerateMealTicket: true
+[2026-03-31T04:38:25.000Z] [GenerateMealTicket] Generating ticket number for RID 1...
+[2026-03-31T04:38:25.001Z] [GenerateMealTicket] Saving ticket MT-20260331-35VS for RID 1...
+[2026-03-31T04:38:25.005Z] [GenerateMealTicket] Ticket MT-20260331-35VS saved successfully.
+[2026-03-31T04:38:47.915Z] [GenerateMealTicket] Attempting identification...
+[2026-03-31T04:38:47.919Z] [GenerateMealTicket] Sending 6 candidates to Bridge.
+[2026-03-31T04:38:47.928Z] [GenerateMealTicket] Bridge Response: status=SUCCESS, matchedIndex=0
+[2026-03-31T04:38:47.929Z] [GenerateMealTicket] IDENTIFIED_SUCCESS: joshua mercado (ID: 9)
+[2026-03-31T04:38:47.929Z] [GenerateMealTicket] Checking authorization for RID 9. canGenerateMealTicket: false
+[2026-03-31T04:38:47.930Z] [GenerateMealTicket] RID 9 is not authorized for meal tickets (canGenerateMealTicket: false)
+[2026-03-31T04:44:12.513Z] [GenerateMealTicket] Attempting identification...
+[2026-03-31T04:44:12.583Z] [GenerateMealTicket] Sending 6 candidates to Bridge.
+[2026-03-31T04:44:12.588Z] [GenerateMealTicket] Bridge Response: status=SUCCESS, matchedIndex=0
+[2026-03-31T04:44:12.589Z] [GenerateMealTicket] IDENTIFIED_SUCCESS: joshua mercado (ID: 9)
+[2026-03-31T04:44:12.589Z] [GenerateMealTicket] Checking authorization for RID 9. canGenerateMealTicket: false
+[2026-03-31T04:44:12.590Z] [GenerateMealTicket] RID 9 is not authorized for meal tickets (canGenerateMealTicket: false)

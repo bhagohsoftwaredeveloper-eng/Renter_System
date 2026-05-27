@@ -1,0 +1,22 @@
+[
+  {
+    "conname": "meal_tickets_id_not_null",
+    "pg_get_constraintdef": "NOT NULL id"
+  },
+  {
+    "conname": "meal_tickets_ticket_number_not_null",
+    "pg_get_constraintdef": "NOT NULL ticket_number"
+  },
+  {
+    "conname": "meal_tickets_pkey",
+    "pg_get_constraintdef": "PRIMARY KEY (id)"
+  },
+  {
+    "conname": "meal_tickets_ticket_number_key",
+    "pg_get_constraintdef": "UNIQUE (ticket_number)"
+  },
+  {
+    "conname": "meal_tickets_registration_id_fkey",
+    "pg_get_constraintdef": "FOREIGN KEY (registration_id) REFERENCES registrations(id)"
+  }
+]

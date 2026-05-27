@@ -17,6 +17,7 @@ class PrinterTest {
     [DllImport(DllPath, EntryPoint = "InitPrinter", CallingConvention = CallingConvention.StdCall, CharSet = CharSet.Unicode)]
     private static extern IntPtr InitPrinterStdUni(string model);
 
+    /*
     static void Main() {
         Console.WriteLine("--- PRINTER SDK P/INVOKE TEST ---");
         
@@ -46,4 +47,5 @@ class PrinterTest {
 
         Console.WriteLine("Test Complete.");
     }
+    */
 }

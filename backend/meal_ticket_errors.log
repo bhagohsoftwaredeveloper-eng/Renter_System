@@ -1,0 +1,72 @@
+[2026-03-31T03:58:32.484Z] [MealTicketController] Error: Please Contact the Registrar Office for the Validations
+Stack: Error: Please Contact the Registrar Office for the Validations
+    at GenerateMealTicket.execute (D:\BHAGOH PROJECT\Renter Systems\backend\src\application\use-cases\GenerateMealTicket.js:89:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async MealTicketController.generate (D:\BHAGOH PROJECT\Renter Systems\backend\src\interfaces\controllers\MealTicketController.js:14:26)
+
+[2026-03-31T03:59:46.925Z] [MealTicketController] Error: Please Contact the Registrar Office for the Validations
+Stack: Error: Please Contact the Registrar Office for the Validations
+    at GenerateMealTicket.execute (D:\BHAGOH PROJECT\Renter Systems\backend\src\application\use-cases\GenerateMealTicket.js:89:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async MealTicketController.generate (D:\BHAGOH PROJECT\Renter Systems\backend\src\interfaces\controllers\MealTicketController.js:14:26)
+
+[2026-03-31T04:00:51.803Z] [MealTicketController] Error: Please Contact the Registrar Office for the Validations
+Stack: Error: Please Contact the Registrar Office for the Validations
+    at GenerateMealTicket.execute (D:\BHAGOH PROJECT\Renter Systems\backend\src\application\use-cases\GenerateMealTicket.js:89:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async MealTicketController.generate (D:\BHAGOH PROJECT\Renter Systems\backend\src\interfaces\controllers\MealTicketController.js:14:26)
+
+[2026-03-31T04:03:31.055Z] [MealTicketController] Error: Please Contact the Registrar Office for the Validations
+Stack: Error: Please Contact the Registrar Office for the Validations
+    at GenerateMealTicket.execute (D:\BHAGOH PROJECT\Renter Systems\backend\src\application\use-cases\GenerateMealTicket.js:89:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async MealTicketController.generate (D:\BHAGOH PROJECT\Renter Systems\backend\src\interfaces\controllers\MealTicketController.js:14:26)
+
+[2026-03-31T04:04:23.670Z] [MealTicketController] Error: Please Contact the Registrar Office for the Validations
+Stack: Error: Please Contact the Registrar Office for the Validations
+    at GenerateMealTicket.execute (D:\BHAGOH PROJECT\Renter Systems\backend\src\application\use-cases\GenerateMealTicket.js:89:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async MealTicketController.generate (D:\BHAGOH PROJECT\Renter Systems\backend\src\interfaces\controllers\MealTicketController.js:14:26)
+
+[2026-03-31T04:07:14.412Z] [MealTicketController] Error: Please Contact the Registrar Office for the Validations
+Stack: Error: Please Contact the Registrar Office for the Validations
+    at GenerateMealTicket.execute (D:\BHAGOH PROJECT\Renter Systems\backend\src\application\use-cases\GenerateMealTicket.js:89:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async MealTicketController.generate (D:\BHAGOH PROJECT\Renter Systems\backend\src\interfaces\controllers\MealTicketController.js:14:26)
+
+[2026-03-31T04:08:55.987Z] [MealTicketController] Error: Please Contact the Registrar Office for the Validations
+Stack: Error: Please Contact the Registrar Office for the Validations
+    at GenerateMealTicket.execute (D:\BHAGOH PROJECT\Renter Systems\backend\src\application\use-cases\GenerateMealTicket.js:89:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async MealTicketController.generate (D:\BHAGOH PROJECT\Renter Systems\backend\src\interfaces\controllers\MealTicketController.js:14:26)
+
+[2026-03-31T04:09:22.663Z] [MealTicketController] Error: Please Contact the Registrar Office for the Validations
+Stack: Error: Please Contact the Registrar Office for the Validations
+    at GenerateMealTicket.execute (D:\BHAGOH PROJECT\Renter Systems\backend\src\application\use-cases\GenerateMealTicket.js:89:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async MealTicketController.generate (D:\BHAGOH PROJECT\Renter Systems\backend\src\interfaces\controllers\MealTicketController.js:14:26)
+
+[2026-03-31T04:11:07.023Z] [MealTicketController] Error: Please Contact the Registrar Office for the Validations
+Stack: Error: Please Contact the Registrar Office for the Validations
+    at GenerateMealTicket.execute (D:\BHAGOH PROJECT\Renter Systems\backend\src\application\use-cases\GenerateMealTicket.js:89:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async MealTicketController.generate (D:\BHAGOH PROJECT\Renter Systems\backend\src\interfaces\controllers\MealTicketController.js:14:26)
+
+[2026-03-31T04:35:16.805Z] [MealTicketController] Error: Please Contact the Registrar Office for the Validations
+Stack: Error: Please Contact the Registrar Office for the Validations
+    at GenerateMealTicket.execute (D:\BHAGOH PROJECT\Renter Systems\backend\src\application\use-cases\GenerateMealTicket.js:89:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async MealTicketController.generate (D:\BHAGOH PROJECT\Renter Systems\backend\src\interfaces\controllers\MealTicketController.js:14:26)
+
+[2026-03-31T04:38:47.930Z] [MealTicketController] Error: Please Contact the Registrar Office for the Validations
+Stack: Error: Please Contact the Registrar Office for the Validations
+    at GenerateMealTicket.execute (D:\BHAGOH PROJECT\Renter Systems\backend\src\application\use-cases\GenerateMealTicket.js:89:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async MealTicketController.generate (D:\BHAGOH PROJECT\Renter Systems\backend\src\interfaces\controllers\MealTicketController.js:14:26)
+
+[2026-03-31T04:44:12.591Z] [MealTicketController] Error: Please Contact the Registrar Office for the Validations
+Stack: Error: Please Contact the Registrar Office for the Validations
+    at GenerateMealTicket.execute (D:\BHAGOH PROJECT\Renter Systems\backend\src\application\use-cases\GenerateMealTicket.js:89:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async MealTicketController.generate (D:\BHAGOH PROJECT\Renter Systems\backend\src\interfaces\controllers\MealTicketController.js:14:26)
+

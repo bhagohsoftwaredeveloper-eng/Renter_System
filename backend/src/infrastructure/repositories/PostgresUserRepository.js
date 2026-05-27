@@ -40,6 +40,21 @@ class PostgresUserRepository extends UserRepository {
     return this._mapToEntity(rows[0]);
   }
 
+  async countAuditLogsByUsername(username, excludeTypes = []) {
+    let query = 'SELECT COUNT(*) FROM audit_logs WHERE admin_id = $1';
+    const params = [username];
+
+    if (excludeTypes.length > 0) {
+      query += ` AND type NOT IN (${excludeTypes.map((_, i) => `$${i + 2}`).join(', ')})`;
+      params.push(...excludeTypes);
+    }
+
+    const { rows } = await this.db.query(query, params);
+    const count = parseInt(rows[0].count);
+    console.log(`[PostgresUserRepository] Audit logs for ${username} (excluding types): ${count}`);
+    return count;
+  }
+
   async delete(id) {
     await this.db.query('DELETE FROM users WHERE id = $1', [id]);
   }

@@ -9,16 +9,28 @@ export const Table = ({ headers, data, renderRow, columnFlex, onRowPress }) => {
   return (
     <DataTable style={styles.container}>
       <DataTable.Header style={styles.header}>
-        {headers.map((header, idx) => (
-          <DataTable.Title 
-            key={idx} 
-            numeric={idx === headers.length - 1}
-            textStyle={styles.headerText}
-            style={columnFlex ? { flex: columnFlex[idx] } : {}}
-          >
-            {header}
-          </DataTable.Title>
-        ))}
+        {headers.map((header, idx) => {
+          const flexStyle = columnFlex ? { flex: columnFlex[idx] } : {};
+          // React-element headers (e.g. a select-all checkbox) must NOT be wrapped
+          // in DataTable.Title's truncating <Text>, which clips them. Render directly.
+          if (React.isValidElement(header)) {
+            return (
+              <View key={idx} style={[styles.nodeTitle, flexStyle]}>
+                {header}
+              </View>
+            );
+          }
+          return (
+            <DataTable.Title
+              key={idx}
+              numeric={idx === headers.length - 1}
+              textStyle={styles.headerText}
+              style={flexStyle}
+            >
+              {header}
+            </DataTable.Title>
+          );
+        })}
       </DataTable.Header>
 
       {data.map((item, idx) => (
@@ -58,5 +70,10 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.slate50,
     paddingVertical: 12, // Increased padding
     borderBottomWidth: 1,
+  },
+  nodeTitle: {
+    justifyContent: 'flex-start',
+    alignItems: 'center',
+    flexDirection: 'row',
   },
 });

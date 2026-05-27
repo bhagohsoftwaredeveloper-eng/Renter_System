@@ -39,6 +39,28 @@ class PostgresMealTicketRepository extends MealTicketRepository {
     return rows.map(row => this._mapToEntity(row));
   }
 
+  /** Tickets for one registration generated within [start, end). Used by the 1-meal restriction. */
+  async getByRegistrationInRange(registrationId, start, end) {
+    const { rows } = await this.db.query(
+      `SELECT * FROM meal_tickets
+       WHERE registration_id = $1 AND generated_at >= $2 AND generated_at < $3
+       AND status <> 'Cancelled'`,
+      [registrationId, start, end]
+    );
+    return rows.map(row => this._mapToEntity(row));
+  }
+
+  /** All tickets generated within [start, end). Used by report summaries. */
+  async getInRange(start, end) {
+    const { rows } = await this.db.query(
+      `SELECT * FROM meal_tickets
+       WHERE generated_at >= $1 AND generated_at < $2
+       AND status <> 'Cancelled'`,
+      [start, end]
+    );
+    return rows.map(row => this._mapToEntity(row));
+  }
+
   async updateStatus(id, status) {
     const { rows } = await this.db.query(
       'UPDATE meal_tickets SET status = $1 WHERE id = $2 RETURNING *',

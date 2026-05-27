@@ -25,6 +25,18 @@ class RegistrationRepository {
   async getExpiredMealTickets() {
     throw new Error('Method not implemented');
   }
+
+  async getByRegistrationNumber(registrationNumber) {
+    throw new Error('Method not implemented');
+  }
+
+  async countTransactionsByRegistrationId(id) {
+    throw new Error('Method not implemented');
+  }
+
+  async getByName(name) {
+    throw new Error('Method not implemented');
+  }
 }
 
 module.exports = RegistrationRepository;

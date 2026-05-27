@@ -1,3 +1,27 @@
+// Polyfill Node.js globals for Electron renderer compatibility
+const _global = typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : typeof global !== 'undefined' ? global : {};
+
+if (typeof _global.process === 'undefined') {
+  _global.process = {
+    env: { NODE_ENV: 'production' },
+    browser: true,
+    platform: 'browser',
+    cwd: () => '/',
+  };
+}
+
+_global.global = _global;
+_global.__dirname = _global.__dirname || '/';
+_global.__filename = _global.__filename || 'index.html';
+
+if (typeof _global.Buffer === 'undefined') {
+  try {
+    _global.Buffer = require('buffer').Buffer;
+  } catch (e) {
+    console.warn('Buffer polyfill failed', e);
+  }
+}
+
 import async from 'async';
 import sjcl from 'sjcl';
 import BigInteger from 'big-integer';

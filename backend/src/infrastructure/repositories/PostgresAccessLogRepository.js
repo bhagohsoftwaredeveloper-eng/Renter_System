@@ -11,8 +11,8 @@ class PostgresAccessLogRepository {
 
   async create(logData) {
     const query = `
-      INSERT INTO access_logs (name, dept, point, location, type, status, date, time, avatar)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      INSERT INTO access_logs (name, dept, point, location, type, status, date, time, avatar, whatsapp_status)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
       RETURNING *
     `;
     const values = [
@@ -24,7 +24,8 @@ class PostgresAccessLogRepository {
       logData.status,
       logData.date,
       logData.time,
-      logData.avatar
+      logData.avatar,
+      logData.whatsappStatus || 'Not Sent'
     ];
     const { rows } = await this.db.query(query, values);
     return rows[0];

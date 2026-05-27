@@ -1,9 +1,11 @@
 import { FingerprintReader, SampleFormat, DeviceSearch } from '@digitalpersona/devices/dist/es6';
 import { FingerprintCaptureV1 } from '@digitalpersona/fingerprint';
+import { BRIDGE_BASE_URL } from './api';
 
 /**
  * Biometric Utility for Digital Persona Web Components
  * This utility uses the official @digitalpersona SDK to interact with the local service.
+ * The bridge URL is read from localStorage (BRIDGE_URL) so it can be configured per-terminal.
  */
 
 let reader = null;
@@ -20,16 +22,16 @@ export const BiometricService = {
    * Check if the DigitalPersona Web Service is active
    */
   isServiceRunning: async () => {
-    // 1. Try hitting the .NET Bridge (Primary)
+    // 1. Try hitting the .NET Bridge (Primary) — URL is configurable per terminal
     try {
-      console.log('Biometric Service: Checking .NET Bridge on 5001...');
-      const response = await fetch('http://localhost:5001/health');
+      console.log(`Biometric Service: Checking .NET Bridge at ${BRIDGE_BASE_URL}...`);
+      const response = await fetch(`${BRIDGE_BASE_URL}/health`);
       if (response.ok) {
         console.log('.NET Biometric Bridge detected and running.');
         return true;
       }
     } catch (e) {
-      console.log('.NET Biometric Bridge not found on 5001. Falling back to HID Web SDK...');
+      console.log(`Could not reach .NET Biometric Bridge at ${BRIDGE_BASE_URL}. Falling back to HID Web SDK...`);
     }
 
     // 2. Fallback to HID Web SDK (52181)
@@ -53,10 +55,10 @@ export const BiometricService = {
    * @returns {Promise<{template: string, status: string}>}
    */
   capture: async () => {
-    // 1. Try .NET Bridge first
+    // 1. Try .NET Bridge first — URL is configurable per terminal
     try {
-      console.log('Initiating capture via .NET Bridge...');
-      const response = await fetch('http://localhost:5001/capture');
+      console.log(`Initiating capture via .NET Bridge at ${BRIDGE_BASE_URL}...`);
+      const response = await fetch(`${BRIDGE_BASE_URL}/capture`);
       if (response.ok) {
         const data = await response.json();
         if (data.status === 'SUCCESS') {

@@ -1,0 +1,9 @@
+﻿[dotenv@17.3.1] injecting env (7) from .env -- tip: ≡ƒ¢í∩╕Å auth for agents: https://vestauth.com
+Found 7 registrations with fingerprints.
+- ID: 1, Name: jhazon enanoria, HasFingerprint: true, ValidBase64: true, Length: 412
+- ID: 5, Name: rex domingo, HasFingerprint: true, ValidBase64: true, Length: 588
+- ID: 6, Name: junah cristobal, HasFingerprint: true, ValidBase64: true, Length: 588
+- ID: 3, Name: pits nugal, HasFingerprint: true, ValidBase64: false, Length: null
+- ID: 9, Name: joshua mercado, HasFingerprint: true, ValidBase64: true, Length: 356
+- ID: 7, Name: henry sy, HasFingerprint: true, ValidBase64: true, Length: 588
+- ID: 4, Name: jim luna, HasFingerprint: true, ValidBase64: true, Length: 588

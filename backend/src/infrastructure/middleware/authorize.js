@@ -11,6 +11,7 @@ const authorize = (requiredPermission) => {
       if (userRole && hasPermission(userRole, requiredPermission)) {
         return next();
       }
+      console.log(`[Authorize] UNAUTHORIZED: Missing Authorization header for request to ${req.originalUrl}`);
       return res.status(401).json({ error: 'Authorization header required' });
     }
 
@@ -27,8 +28,10 @@ const authorize = (requiredPermission) => {
         return next();
       }
 
+      console.log(`[Authorize] FORBIDDEN: User ${decoded.username} (Role: ${decoded.role}) missing permission: ${requiredPermission}`);
       return res.status(403).json({ error: 'Forbidden: Insufficient permissions' });
     } catch (err) {
+      console.log(`[Authorize] UNAUTHORIZED: Invalid or expired token for request to ${req.originalUrl}`);
       return res.status(401).json({ error: 'Invalid or expired token' });
     }
   };

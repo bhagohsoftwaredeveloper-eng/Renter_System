@@ -1,0 +1,44 @@
+# ServeQueue Desktop Deployment Walkthrough
+
+We have successfully transformed the ServeQueue development project into a production-ready desktop solution.
+
+## What was Accomplished
+
+### 1. Standalone Biometric Bridge (Desktop Startup App)
+- Successfully published the .NET core Biometric Bridge using the `dotnet publish` command.
+- **Fixed Hardware Connection**: Discovered that USB fingerprint readers are blocked for Windows Services. Switched the Bridge to a **Startup App** model to restore full hardware access.
+- **Fixed Service Startup**: Resolved a port conflict with the manual `dotnet run` process and corrected the working directory behavior.
+- **Fixed DLL Bundling**: Disabled SingleFile bundling to ensure all critical hardware-bound DLLs (`DPUruNet.dll`, etc.) are delivered correctly in the application folder.
+- **Output**: [BiometricBridge.exe](file:///D:/BHAGOH%20PROJECT/Renter%20Systems/BiometricBridge/bin/Release/net9.0/win-x64/publish/BiometricBridge.exe)
+
+### 2. Standalone Node.js Backend
+- Configured the backend `package.json` to support entry point mapping and asset bundling.
+- Used `pkg` to compile the server into a single file.
+- **Output**: [server.exe](file:///D:/BHAGOH%20PROJECT/Renter%20Systems/backend/dist/server.exe)
+- It now reads database configuration from a local `.env` file.
+
+### 3. Production Electron Application
+- Exported the Expo React Native app to a production web build.
+- **Fixed Display, Fonts, and Icons**: Manually patched the exported `index.html` AND the minified JavaScript bundles (`AppEntry-*.js`) to use relative paths (`./`) for all static assets. This ensures fonts, icons, and CSS load correctly using the `file://` protocol in the packaged Electron environment.
+- Fixed the `package.json` entry point (`main`) to correctly point to the Electron main process for bundling.
+- Used `electron-builder` to generate a professional Windows installer.
+- **Output**: [ServeQueue Setup 1.0.0.exe](file:///D:/BHAGOH%20PROJECT/Renter%20Systems/SecureAccess/release/ServeQueue%20Setup%201.0.0.exe)
+
+### 4. Unified Deployment Package
+- Consolidated all components into a single **Deliverable Folder**: `D:\BHAGOH PROJECT\ServeQueue_Deployment`.
+- Organized into:
+    - `Backend/`: Server core and SQL schema.
+    - `BiometricBridge/`: Hardware drivers and bridge application.
+    - `Installer/`: Frontend desktop installer.
+- Created a localized [install_services.ps1](file:///D:/BHAGOH%20PROJECT/ServeQueue_Deployment/install_services.ps1) script to automate everything in one click.
+
+## Final Build Status
+- **Biometric Bridge**: [BiometricBridge.exe](file:///D:/BHAGOH%20PROJECT/Renter%20Systems/BiometricBridge/bin/Release/net9.0/win-x64/publish/BiometricBridge.exe) (Ready)
+- **Backend Server**: [server.exe](file:///D:/BHAGOH%20PROJECT/Renter%20Systems/backend/dist/server.exe) (Ready)
+- **Frontend Installer**: [ServeQueue Setup 1.0.0.exe](file:///D:/BHAGOH%20PROJECT/Renter%20Systems/SecureAccess/release/ServeQueue%20Setup%201.0.0.exe) (Ready)
+
+## Next Steps
+1. Transfer the built items to the target machine.
+2. Follow the [Deployment Guide](file:///C:/Users/Admin/.gemini/antigravity/brain/7072be59-508d-44cd-83cd-b709b803a388/deployment_guide.md) to initialize the database.
+3. Run the [install_services.ps1](file:///D:/BHAGOH%20PROJECT/Renter%20Systems/install_services.ps1) script (as Administrator) to set up background execution.
+4. Launch the desktop application!

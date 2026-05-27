@@ -1,0 +1,15 @@
+﻿  Determining projects to restore...
+  All projects are up-to-date for restore.
+D:\BHAGOH PROJECT\Renter Systems\biometricbridge\TestPrinter.cs(20,17): warning CS7022: The entry point of the program is global code; ignoring 'PrinterTest.Main()' entry point. [D:\BHAGOH PROJECT\Renter Systems\biometricbridge\BiometricBridge.csproj]
+D:\BHAGOH PROJECT\Renter Systems\biometricbridge\PrinterService.cs(75,70): warning CS8625: Cannot convert null literal to non-nullable reference type. [D:\BHAGOH PROJECT\Renter Systems\biometricbridge\BiometricBridge.csproj]
+D:\BHAGOH PROJECT\Renter Systems\biometricbridge\PrinterService.cs(115,67): warning CS8625: Cannot convert null literal to non-nullable reference type. [D:\BHAGOH PROJECT\Renter Systems\biometricbridge\BiometricBridge.csproj]
+D:\BHAGOH PROJECT\Renter Systems\biometricbridge\PrinterService.cs(135,22): warning CS8625: Cannot convert null literal to non-nullable reference type. [D:\BHAGOH PROJECT\Renter Systems\biometricbridge\BiometricBridge.csproj]
+D:\BHAGOH PROJECT\Renter Systems\biometricbridge\PrinterService.cs(172,22): warning CS8625: Cannot convert null literal to non-nullable reference type. [D:\BHAGOH PROJECT\Renter Systems\biometricbridge\BiometricBridge.csproj]
+D:\BHAGOH PROJECT\Renter Systems\biometricbridge\PrinterService.cs(186,22): warning CS8625: Cannot convert null literal to non-nullable reference type. [D:\BHAGOH PROJECT\Renter Systems\biometricbridge\BiometricBridge.csproj]
+D:\BHAGOH PROJECT\Renter Systems\biometricbridge\PrinterService.cs(153,29): warning CA1416: This call site is reachable on all platforms. 'Registry.LocalMachine' is only supported on: 'windows'. (https://learn.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca1416) [D:\BHAGOH PROJECT\Renter Systems\biometricbridge\BiometricBridge.csproj]
+D:\BHAGOH PROJECT\Renter Systems\biometricbridge\PrinterService.cs(153,29): warning CA1416: This call site is reachable on all platforms. 'RegistryKey.OpenSubKey(string)' is only supported on: 'windows'. (https://learn.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca1416) [D:\BHAGOH PROJECT\Renter Systems\biometricbridge\BiometricBridge.csproj]
+D:\BHAGOH PROJECT\Renter Systems\biometricbridge\PrinterService.cs(156,38): warning CA1416: This call site is reachable on all platforms. 'RegistryKey.GetSubKeyNames()' is only supported on: 'windows'. (https://learn.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca1416) [D:\BHAGOH PROJECT\Renter Systems\biometricbridge\BiometricBridge.csproj]
+  BiometricBridge -> D:\BHAGOH PROJECT\Renter Systems\biometricbridge\bin\Release\net9.0\win-x64\BiometricBridge.dll
+  BiometricBridge -> D:\BHAGOH PROJECT\Renter Systems\biometricbridge\bin\Release\net9.0\win-x64\publish\
+
+Workload updates are available. Run `dotnet workload list` for more information.

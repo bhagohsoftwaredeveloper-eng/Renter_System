@@ -1,7 +1,7 @@
 {
   "name": "secure-access-app",
-  "version": "1.0.0",
-  "main": "expo/AppEntry.js",
+  "version": "1.2.0",
+  "main": "index.js",
   "scripts": {
     "start": "expo start",
     "android": "expo start --android",
@@ -9,7 +9,37 @@
     "web": "expo start --web",
     "electron": "electron electron/main.js",
     "electron:admin": "electron electron/main.js --admin",
-    "electron:terminal": "electron electron/main.js --terminal"
+    "electron:terminal": "electron electron/main.js --terminal",
+    "build:web": "npx expo export --platform web",
+    "package": "npm run build:web && node scripts/fix-paths.js && electron-builder build --win --x64"
+  },
+  "build": {
+    "extraMetadata": {
+      "main": "electron/main.js"
+    },
+    "appId": "com.servequeue.app",
+    "productName": "ServeQueue",
+    "directories": {
+      "output": "release"
+    },
+    "icon": "assets/serveQueue.png",
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "package.json"
+    ],
+    "win": {
+      "icon": "assets/serveQueue.png",
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "include": "electron/installer.nsh"
+    }
   },
   "dependencies": {
     "@digitalpersona/devices": "^0.2.6",
@@ -48,6 +78,7 @@
     "@types/react": "~19.2.10",
     "babel-preset-expo": "^55.0.12",
     "electron": "^41.0.3",
+    "electron-builder": "^26.8.1",
     "electron-is-dev": "^3.0.1",
     "tailwindcss": "^3.3.2",
     "typescript": "~5.9.2"

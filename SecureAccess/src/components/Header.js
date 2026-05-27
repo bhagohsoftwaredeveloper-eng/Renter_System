@@ -1,15 +1,17 @@
 import React from 'react';
-import { View, StyleSheet, Platform } from 'react-native';
+import { View, StyleSheet, Platform, useWindowDimensions } from 'react-native';
 import { Appbar, Avatar, Text, Searchbar, IconButton, useTheme } from 'react-native-paper';
 import { colors } from '../theme/colors';
 import { usePermissions } from '../context/PermissionContext';
 import { ROLES } from '../utils/permissions';
 import { NotificationBell } from './NotificationBell';
 
-export const Header = () => {
+export const Header = ({ onToggleSidebar }) => {
   const theme = useTheme();
   const [searchQuery, setSearchQuery] = React.useState('');
   const { user, userRole, logout } = usePermissions();
+  const { width } = useWindowDimensions();
+  const isDesktop = width >= 1024;
 
   const onChangeSearch = query => setSearchQuery(query);
 
@@ -35,6 +37,12 @@ export const Header = () => {
   return (
     <Appbar.Header style={[styles.header]} elevated dataSet={Platform.OS === 'web' ? { class: 'electron-drag' } : {}}>
       <View style={[styles.left]} dataSet={Platform.OS === 'web' ? { class: 'electron-no-drag' } : {}}>
+        <IconButton
+          icon="menu"
+          size={24}
+          onPress={onToggleSidebar}
+          style={styles.hamburgerMenu}
+        />
         <Avatar.Icon 
           size={32} 
           icon="shield-alert" 
@@ -43,7 +51,7 @@ export const Header = () => {
         />
         <View>
           <Text variant="titleMedium" style={styles.logoText}>
-            SecureAccess <Text style={{ color: theme.colors.primary, fontWeight: 'bold' }}>Admin</Text>
+            ServeQueue <Text style={{ color: theme.colors.primary, fontWeight: 'bold' }}>Admin</Text>
           </Text>
           <Text variant="labelSmall" style={{ marginLeft: 8, color: colors.slate400 }}>
             Session: <Text style={{ color: colors.primary, fontWeight: 'bold' }}>{userRole}</Text>
@@ -79,29 +87,6 @@ export const Header = () => {
             labelStyle={{ color: colors.primary, fontWeight: 'bold' }}
           />
         </View>
-        {(isElectron || window.electron) && (
-          <View style={styles.windowControls}>
-            <IconButton 
-              icon="minus" 
-              size={20} 
-              onPress={() => window.electron?.windowControls?.minimize()} 
-              style={styles.windowButton} 
-            />
-            <IconButton 
-              icon="window-maximize" 
-              size={20} 
-              onPress={() => window.electron?.windowControls?.maximize()} 
-              style={styles.windowButton} 
-            />
-            <IconButton 
-              icon="close" 
-              size={20} 
-              onPress={() => window.electron?.windowControls?.close()} 
-              style={styles.windowButton} 
-              iconColor={colors.red600} 
-            />
-          </View>
-        )}
       </View>
     </Appbar.Header>
   );
@@ -122,6 +107,10 @@ const styles = StyleSheet.create({
   logoText: {
     marginLeft: 8,
     letterSpacing: -0.5,
+  },
+  hamburgerMenu: {
+    margin: 0,
+    marginRight: 8,
   },
   center: {
     flex: 1,

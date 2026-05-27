@@ -2,6 +2,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Linq;
 using System.Collections.Generic;
+using Microsoft.Win32;
 
 public class PrinterService : IDisposable
 {
@@ -143,6 +144,28 @@ public class PrinterService : IDisposable
         return "None found";
     }
 
+    public List<string> GetWindowsPrinterList()
+    {
+        var printers = new List<string>();
+        try
+        {
+            const string printerKey = @"SYSTEM\CurrentControlSet\Control\Print\Printers";
+            using var key = Registry.LocalMachine.OpenSubKey(printerKey);
+            if (key != null)
+            {
+                foreach (var name in key.GetSubKeyNames())
+                {
+                    printers.Add(name);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[WARN] Registry printer enumeration failed: {ex.Message}");
+        }
+        return printers;
+    }
+
     public List<string> GetPrinterList()
     {
         uint needSize = 0;
@@ -172,15 +195,16 @@ public class PrinterService : IDisposable
         return "None found";
     }
 
-    public bool PrintMealTicket(string renterName, string mealType, string date)
+    public bool PrintMealTicket(string renterName, string mealType, string date, string? requestedPrinter = null, string? floor = null, string? expiration = null)
     {
-        Console.WriteLine($"[INFO] Request to print for: {renterName} (Meal: {mealType})");
-        
-        // Try WinSpool (Direct Windows Printing) for XP-58-P
-        try 
+        Console.WriteLine($"[INFO] Request to print for: {renterName} (Meal: {mealType}, Floor: {floor}, Exp: {expiration})");
+        string targetPrinter = string.IsNullOrWhiteSpace(requestedPrinter) ? "XP-58-P" : requestedPrinter;
+
+        // Try WinSpool (Direct Windows Printing) for target Printer
+        try
         {
-            Console.WriteLine("[INFO] Attempting Direct Windows Spooler Printing (XP-58-P)...");
-            if (SendRawToPrinter("XP-58-P", renterName, mealType, date))
+            Console.WriteLine($"[INFO] Attempting Direct Windows Spooler Printing ({targetPrinter})...");
+            if (SendRawToPrinter(targetPrinter, renterName, mealType, date, floor, expiration))
             {
                 Console.WriteLine("[SUCCESS] Printed via Windows Spooler.");
                 return true;
@@ -197,7 +221,11 @@ public class PrinterService : IDisposable
 
         try
         {
-            var portAttempts = new List<string> { "USB002", "XP-58-P", "USB001", "XP-58" };
+            var portAttempts = new List<string>();
+            if (!string.IsNullOrWhiteSpace(requestedPrinter))
+                portAttempts.Add(requestedPrinter);
+            portAttempts.AddRange(new[] { "USB002", "XP-58-P", "USB001", "XP-58" });
+            
             int openResult = -1;
             string successfulPort = "";
 
@@ -216,9 +244,16 @@ public class PrinterService : IDisposable
             {
                 PrinterInitialize(_hPrinter);
                 SetAlign(_hPrinter, 1);
-                PrintText(_hPrinter, "MEAL TICKET\n", 1, 1);
+                PrintText(_hPrinter, "ZENITH TOWERS\n", 1, 1);
+                PrintText(_hPrinter, "MEAL TICKET\n", 1, 0);
                 SetAlign(_hPrinter, 0);
-                PrintText(_hPrinter, $"NAME: {renterName}\nMEAL: {mealType}\nDATE: {date}\n", 0, 0);
+                var sdkBody = new StringBuilder();
+                sdkBody.Append($"NAME: {renterName}\n");
+                if (!string.IsNullOrWhiteSpace(floor)) sdkBody.Append($"FLOOR: {floor}\n");
+                sdkBody.Append($"MEAL: {mealType}\n");
+                sdkBody.Append($"DATE: {date}\n");
+                if (!string.IsNullOrWhiteSpace(expiration)) sdkBody.Append($"EXPIRES: {expiration}\n");
+                PrintText(_hPrinter, sdkBody.ToString(), 0, 0);
                 FeedLine(_hPrinter, 4);
                 CutPaper(_hPrinter, 0);
                 ClosePort(_hPrinter);
@@ -232,7 +267,7 @@ public class PrinterService : IDisposable
         }
     }
 
-    private bool SendRawToPrinter(string printerName, string renterName, string mealType, string date)
+    private bool SendRawToPrinter(string printerName, string renterName, string mealType, string date, string? floor = null, string? expiration = null)
     {
         IntPtr hPrinter = IntPtr.Zero;
         DOCINFOA di = new DOCINFOA();
@@ -260,7 +295,11 @@ public class PrinterService : IDisposable
                     sb.AppendLine("--------------------------------");
                     sb.AppendLine($"DATE: {date}");
                     sb.AppendLine($"NAME: {renterName.ToUpper()}");
+                    if (!string.IsNullOrWhiteSpace(floor))
+                        sb.AppendLine($"FLOOR: {floor.ToUpper()}");
                     sb.AppendLine($"MEAL: {mealType.ToUpper()}");
+                    if (!string.IsNullOrWhiteSpace(expiration))
+                        sb.AppendLine($"EXPIRES: {expiration.ToUpper()}");
                     sb.AppendLine("--------------------------------");
                     sb.AppendLine("\n\n\n\n");
 
@@ -270,8 +309,10 @@ public class PrinterService : IDisposable
                     payload.AddRange(escInit);
                     payload.AddRange(escCenter);
                     payload.AddRange(escLarge);
-                    payload.AddRange(Encoding.ASCII.GetBytes("MEAL TICKET\n\n"));
+                    payload.AddRange(Encoding.ASCII.GetBytes("ZENITH TOWERS\n"));
                     payload.AddRange(escNormal);
+                    payload.AddRange(escCenter);
+                    payload.AddRange(Encoding.ASCII.GetBytes("\n"));
                     payload.AddRange(escLeft);
                     payload.AddRange(textData);
                     payload.AddRange(escCut);

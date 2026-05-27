@@ -12,45 +12,99 @@ CREATE TABLE IF NOT EXISTS registrations (
     unit VARCHAR(100),
     imd VARCHAR(100),
     has_fingerprint BOOLEAN DEFAULT FALSE,
-    biometric_template TEXT,
     status VARCHAR(20) DEFAULT 'Pending',
     initials VARCHAR(10),
-    date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    date DATE DEFAULT CURRENT_DATE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     can_generate_meal_ticket BOOLEAN DEFAULT FALSE,
     meal_ticket_expiration_date DATE,
+    biometric_template TEXT,
+    meal_type VARCHAR(20) DEFAULT 'Non-Veggie',
+    registration_number VARCHAR(6) UNIQUE,
     meal_ticket_suspend_start DATE,
-    meal_ticket_suspend_end DATE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    meal_ticket_suspend_end DATE
 );
+
+-- Ensure all columns exist in registrations (for existing databases)
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='registrations' AND column_name='can_generate_meal_ticket') THEN
+        ALTER TABLE registrations ADD COLUMN can_generate_meal_ticket BOOLEAN DEFAULT FALSE;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='registrations' AND column_name='meal_ticket_expiration_date') THEN
+        ALTER TABLE registrations ADD COLUMN meal_ticket_expiration_date DATE;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='registrations' AND column_name='biometric_template') THEN
+        ALTER TABLE registrations ADD COLUMN biometric_template TEXT;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='registrations' AND column_name='meal_type') THEN
+        ALTER TABLE registrations ADD COLUMN meal_type VARCHAR(20) DEFAULT 'Non-Veggie';
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='registrations' AND column_name='registration_number') THEN
+        ALTER TABLE registrations ADD COLUMN registration_number VARCHAR(6) UNIQUE;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='registrations' AND column_name='meal_ticket_suspend_start') THEN
+        ALTER TABLE registrations ADD COLUMN meal_ticket_suspend_start DATE;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='registrations' AND column_name='meal_ticket_suspend_end') THEN
+        ALTER TABLE registrations ADD COLUMN meal_ticket_suspend_end DATE;
+    END IF;
+END $$;
 
 -- Create users table
 CREATE TABLE IF NOT EXISTS users (
     id SERIAL PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
-    email VARCHAR(255) UNIQUE NOT NULL,
+    email VARCHAR(255),
     role VARCHAR(50) NOT NULL,
-    password VARCHAR(255),
     status VARCHAR(20) DEFAULT 'Active',
     last_login TIMESTAMP,
     initials VARCHAR(10),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    password VARCHAR(255),
+    username VARCHAR(255) NOT NULL UNIQUE,
+    custom_permissions TEXT
 );
+
+-- Ensure custom_permissions and nullable email exist (for existing databases)
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='custom_permissions') THEN
+        ALTER TABLE users ADD COLUMN custom_permissions TEXT;
+    END IF;
+    -- Make email nullable if it was NOT NULL before
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='email' AND is_nullable='NO') THEN
+        ALTER TABLE users ALTER COLUMN email DROP NOT NULL;
+    END IF;
+END $$;
 
 -- Create meal_tickets table
 CREATE TABLE IF NOT EXISTS meal_tickets (
     id SERIAL PRIMARY KEY,
     registration_id INTEGER REFERENCES registrations(id),
     ticket_number VARCHAR(50) UNIQUE NOT NULL,
-    meal_type VARCHAR(50),
     status VARCHAR(20) DEFAULT 'Active',
     generated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    expires_at TIMESTAMP
+    expires_at TIMESTAMP,
+    meal_type VARCHAR(50),
+    renter_name VARCHAR(255)
 );
 
--- Insert initial admin user
-INSERT INTO users (name, email, role, status, initials)
-VALUES ('Admin User', 'admin@secureaccess.io', 'Administrator', 'Active', 'AU')
-ON CONFLICT (email) DO NOTHING;
+-- Ensure meal_type and renter_name exist in meal_tickets
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='meal_tickets' AND column_name='meal_type') THEN
+        ALTER TABLE meal_tickets ADD COLUMN meal_type VARCHAR(50);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='meal_tickets' AND column_name='renter_name') THEN
+        ALTER TABLE meal_tickets ADD COLUMN renter_name VARCHAR(255);
+    END IF;
+END $$;
+
+-- Force reset admin user to ensure fresh credentials (optional, but kept as per previous version)
+DELETE FROM users WHERE username = 'admin';
+INSERT INTO users (name, email, role, status, initials, username, password)
+VALUES ('Admin User', 'admin@secureaccess.io', 'Administrator', 'Active', 'AU', 'admin', '$2b$10$3eSyoWpQ2.Ym962FC5kJn.CqMYwVO1xe7KBeNkRGcHVi83pm.mROe');
 
 -- Create access_logs table
 CREATE TABLE IF NOT EXISTS access_logs (
@@ -64,8 +118,17 @@ CREATE TABLE IF NOT EXISTS access_logs (
     date DATE DEFAULT CURRENT_DATE,
     time VARCHAR(50),
     avatar TEXT,
+    whatsapp_status VARCHAR(50) DEFAULT 'Not Sent',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Ensure whatsapp_status exists in access_logs
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='access_logs' AND column_name='whatsapp_status') THEN
+        ALTER TABLE access_logs ADD COLUMN whatsapp_status VARCHAR(50) DEFAULT 'Not Sent';
+    END IF;
+END $$;
 
 -- Create audit_logs table
 CREATE TABLE IF NOT EXISTS audit_logs (
@@ -82,19 +145,55 @@ CREATE TABLE IF NOT EXISTS audit_logs (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Insert initial mock data for audit logs
+-- Seed audit logs if empty
 INSERT INTO audit_logs (admin, admin_id, type, details, sub_details, status, date, time, initials)
 SELECT 'Sarah Adams', 'ADM-9021', 'User Management', 'Approved Renter ''John Doe''', 'Access Key: BK-4412-X', 'Success', 'Oct 24, 2023', '14:32:01 UTC', 'SA'
 WHERE NOT EXISTS (SELECT 1 FROM audit_logs LIMIT 1);
-INSERT INTO audit_logs (admin, admin_id, type, details, sub_details, status, date, time, initials)
-SELECT 'Marcus Vance', 'ADM-1152', 'System Config', 'Changed OAuth Callback URL', 'Env: Production', 'Success', 'Oct 24, 2023', '13:15:44 UTC', 'MV'
-WHERE NOT EXISTS (SELECT 1 FROM audit_logs WHERE admin_id = 'ADM-1152' LIMIT 1);
-INSERT INTO audit_logs (admin, admin_id, type, details, sub_details, status, date, time, initials)
-SELECT 'System Automator', 'Worker-04', 'Security Update', 'Auto-rotate Encryption Keys', 'Standard weekly rotation', 'Failed', 'Oct 24, 2023', '11:02:18 UTC', 'SY'
-WHERE NOT EXISTS (SELECT 1 FROM audit_logs WHERE admin_id = 'Worker-04' LIMIT 1);
-INSERT INTO audit_logs (admin, admin_id, type, details, sub_details, status, date, time, initials)
-SELECT 'Sarah Adams', 'ADM-9021', 'Other', 'Archived Logs Prior to 2022', 'Storage Tier: Cold Archive', 'Success', 'Oct 23, 2023', '23:59:12 UTC', 'SA'
-WHERE NOT EXISTS (SELECT 1 FROM audit_logs WHERE details = 'Archived Logs Prior to 2022' LIMIT 1);
-INSERT INTO audit_logs (admin, admin_id, type, details, sub_details, status, date, time, initials)
-SELECT 'Elena Loft', 'ADM-4421', 'User Management', 'Revoked API Access for ''DevTeam-Alpha''', 'Reason: Policy Violation', 'Success', 'Oct 23, 2023', '18:22:10 UTC', 'EL'
-WHERE NOT EXISTS (SELECT 1 FROM audit_logs WHERE admin_id = 'ADM-4421' LIMIT 1);
+
+-- Create system_settings table
+CREATE TABLE IF NOT EXISTS system_settings (
+    key VARCHAR(255) PRIMARY KEY,
+    value TEXT,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Seed default settings
+INSERT INTO system_settings (key, value)
+VALUES ('whatsapp_biometric_message', 'Hello! Your child {name} has successfully used the biometric terminal for their {mealType} meal at {time}. Thank you!')
+ON CONFLICT (key) DO NOTHING;
+
+INSERT INTO system_settings (key, value)
+VALUES ('wassenger_api_key', '')
+ON CONFLICT (key) DO NOTHING;
+
+-- WhatsApp recipient toggles (notify student and/or parent)
+INSERT INTO system_settings (key, value)
+VALUES ('notify_parent_enabled', 'true')
+ON CONFLICT (key) DO NOTHING;
+
+INSERT INTO system_settings (key, value)
+VALUES ('notify_student_enabled', 'true')
+ON CONFLICT (key) DO NOTHING;
+
+-- Message template sent to the student's own number
+INSERT INTO system_settings (key, value)
+VALUES ('whatsapp_student_message', 'Hello {name}! Your {mealType} meal ticket was issued at {time}. Enjoy your meal!')
+ON CONFLICT (key) DO NOTHING;
+
+-- One-meal-per-period restriction (Breakfast / Lunch / Dinner)
+-- Enabled by default: each user may claim only one ticket per meal service.
+INSERT INTO system_settings (key, value)
+VALUES ('meal_restriction_enabled', 'true')
+ON CONFLICT (key) DO NOTHING;
+
+INSERT INTO system_settings (key, value)
+VALUES ('meal_window_breakfast', '5:00 AM-10:00 AM')
+ON CONFLICT (key) DO NOTHING;
+
+INSERT INTO system_settings (key, value)
+VALUES ('meal_window_lunch', '11:00 AM-2:00 PM')
+ON CONFLICT (key) DO NOTHING;
+
+INSERT INTO system_settings (key, value)
+VALUES ('meal_window_dinner', '5:00 PM-9:00 PM')
+ON CONFLICT (key) DO NOTHING;

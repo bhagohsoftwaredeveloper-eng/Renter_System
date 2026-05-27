@@ -1,0 +1,61 @@
+[dotenv@17.3.1] injecting env (8) from .env -- tip: 🛠️  run anywhere with `dotenvx run -- yourcommand`
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🛠️  run anywhere with `dotenvx run -- yourcommand`
+[2026-05-26T09:40:59.449Z] DB Connection SUCCESS: Database is reachable.
+[2026-05-26T09:40:59.452Z] Server running on port 5005 with Clean Architecture
+[Authorize] UNAUTHORIZED: Missing Authorization header for request to /api/registrations/check-biometric
+[DEBUG] Login attempt for user: admin
+[DEBUG] Password valid: true
+[MealTicketController] Generating ticket. RID: null, Type: null
+[GenerateMealTicket] Attempting identification...
+[GenerateMealTicket] Sending 1 candidates to Bridge.
+[GenerateMealTicket] Calling Bridge at: http://127.0.0.1:5003/identify
+[GenerateMealTicket] Bridge Response: status=SUCCESS, matchedIndex=0
+[GenerateMealTicket] IDENTIFIED_SUCCESS: jhazon enanoria (ID: 1)
+[GenerateMealTicket] Checking authorization for RID 1. canGenerateMealTicket: true
+[GenerateMealTicket] RID 1 already claimed Dinner today
+[MealTicketController] Error caught: Error: Dinner meal already claimed today. Only one Dinner ticket is allowed per student.
+    at GenerateMealTicket.execute (D:\BHAGOH PROJECT\Renter Systems\backend\src\application\use-cases\GenerateMealTicket.js:125:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async MealTicketController.generate (D:\BHAGOH PROJECT\Renter Systems\backend\src\interfaces\controllers\MealTicketController.js:14:26)
+[MealTicketController] Sending 409 with error: "Dinner meal already claimed today. Only one Dinner ticket is allowed per student."
+[MealTicketController] Generating ticket. RID: null, Type: null
+[GenerateMealTicket] Attempting identification...
+[GenerateMealTicket] Sending 1 candidates to Bridge.
+[GenerateMealTicket] Calling Bridge at: http://127.0.0.1:5003/identify
+[GenerateMealTicket] Bridge Response: status=SUCCESS, matchedIndex=0
+[GenerateMealTicket] IDENTIFIED_SUCCESS: jhazon enanoria (ID: 1)
+[GenerateMealTicket] Checking authorization for RID 1. canGenerateMealTicket: true
+[GenerateMealTicket] RID 1 already claimed Dinner today
+[MealTicketController] Error caught: Error: Dinner meal already claimed today. Only one Dinner ticket is allowed per student.
+    at GenerateMealTicket.execute (D:\BHAGOH PROJECT\Renter Systems\backend\src\application\use-cases\GenerateMealTicket.js:125:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async MealTicketController.generate (D:\BHAGOH PROJECT\Renter Systems\backend\src\interfaces\controllers\MealTicketController.js:14:26)
+[MealTicketController] Sending 409 with error: "Dinner meal already claimed today. Only one Dinner ticket is allowed per student."
+[MealTicketController] Generating ticket. RID: null, Type: null
+[GenerateMealTicket] Attempting identification...
+[GenerateMealTicket] Sending 2 candidates to Bridge.
+[GenerateMealTicket] Calling Bridge at: http://127.0.0.1:5003/identify
+[GenerateMealTicket] Bridge Response: status=SUCCESS, matchedIndex=0
+[GenerateMealTicket] IDENTIFIED_SUCCESS: REX DOMINGO (ID: 2)
+[GenerateMealTicket] Checking authorization for RID 2. canGenerateMealTicket: true
+[GenerateMealTicket] Generating ticket number for RID 2...
+[GenerateMealTicket] Saving ticket MT-20260526-B2BV for RID 2...
+[GenerateMealTicket] Ticket MT-20260526-B2BV saved successfully.
+[MealTicketController] Ticket generated: MT-20260526-B2BV
+[CreateAccessLog] Sending WhatsApp to parent (639357117604): Hello!  REX DOMINGO has successfully generate a meal ticket for their Non-Veggie meal at 06:16:24 PM. Thank you!
+[WhatsAppService] Message sent via Wassenger to 639357117604. ID: 6a1572f5756f97b2cbb0f067
+[CreateAccessLog] Sending WhatsApp to student (639357117604): Hello!  REX DOMINGO has successfully generate a meal ticket for their Non-Veggie meal at 06:16:24 PM. Thank you!
+[WhatsAppService] Message sent via Wassenger to 639357117604. ID: 6a1572f6405199e26e37ad80
+[MealTicketController] Generating ticket. RID: null, Type: null
+[GenerateMealTicket] Attempting identification...
+[GenerateMealTicket] Sending 2 candidates to Bridge.
+[GenerateMealTicket] Calling Bridge at: http://127.0.0.1:5003/identify
+[GenerateMealTicket] Bridge Response: status=SUCCESS, matchedIndex=0
+[GenerateMealTicket] IDENTIFIED_SUCCESS: REX DOMINGO (ID: 2)
+[GenerateMealTicket] Checking authorization for RID 2. canGenerateMealTicket: true
+[GenerateMealTicket] RID 2 already claimed Dinner today
+[MealTicketController] Error caught: Error: Dinner meal already claimed today. Only one Dinner ticket is allowed per student.
+    at GenerateMealTicket.execute (D:\BHAGOH PROJECT\Renter Systems\backend\src\application\use-cases\GenerateMealTicket.js:125:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async MealTicketController.generate (D:\BHAGOH PROJECT\Renter Systems\backend\src\interfaces\controllers\MealTicketController.js:14:26)
+[MealTicketController] Sending 409 with error: "Dinner meal already claimed today. Only one Dinner ticket is allowed per student."

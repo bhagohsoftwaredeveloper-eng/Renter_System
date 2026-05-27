@@ -4,6 +4,8 @@ using System.Text.Json;
 using DPUruNet;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Host.UseWindowsService();
+Directory.SetCurrentDirectory(AppContext.BaseDirectory);
 
 // Add services to the container
 builder.Services.AddEndpointsApiExplorer();
@@ -36,10 +38,12 @@ app.UseCors("AllowAll");
 
 app.MapGet("/status", (BiometricManager bio, PrinterService printer) => 
 {
+    // Use Windows Registry-based printer enumeration for reliable detection
+    var windowsPrinters = printer.GetWindowsPrinterList();
     return Results.Ok(new { 
-        Biometric = new { bio.IsActive, bio.ReaderCount },
-        Printers = printer.GetAvailablePrinters(),
-        Ports = printer.GetAvailablePorts()
+        biometric = new { isActive = bio.IsActive, readerCount = bio.ReaderCount },
+        printers = windowsPrinters,
+        ports = printer.GetAvailablePorts()
     });
 });
 
@@ -74,10 +78,10 @@ app.MapPost("/identify", ([FromBody] IdentifyRequest request, BiometricManager m
 
 app.MapPost("/print", ([FromBody] PrintRequest request, PrinterService printer) =>
 {
-    Console.WriteLine($"[INFO] POST /print received for: {request.RenterName}");
+    Console.WriteLine($"[INFO] POST /print received for: {request.RenterName} to printer: {request.PrinterName ?? "DEFAULT"}");
     try
     {
-        bool success = printer.PrintMealTicket(request.RenterName, request.MealType, request.Date);
+        bool success = printer.PrintMealTicket(request.RenterName, request.MealType, request.Date, request.PrinterName, request.Floor, request.Expiration);
         if (success)
         {
             Console.WriteLine("[INFO] Print job sent successfully.");
@@ -96,10 +100,10 @@ app.MapPost("/print", ([FromBody] PrintRequest request, PrinterService printer) 
     }
 });
 
-app.Run("http://0.0.0.0:5001");
+app.Run("http://127.0.0.1:5003");
 
 public record IdentifyRequest(string Probe, List<string> Candidates);
-public record PrintRequest(string RenterName, string MealType, string Date);
+public record PrintRequest(string RenterName, string MealType, string Date, string? PrinterName, string? Floor, string? Expiration);
 
 // --- Hardware Interface (DPUruNet SDK) ---
 public class BiometricManager

@@ -5,7 +5,7 @@ import 'react-native-gesture-handler';
 import 'react-native-reanimated';
 import { registerRootComponent } from 'expo';
 import React, { useState, useEffect } from 'react';
-import { View, ActivityIndicator, Platform } from 'react-native';
+import { View, ActivityIndicator, Platform, Dimensions } from 'react-native';
 import * as Font from 'expo-font';
 import { PublicSans_400Regular, PublicSans_700Bold, PublicSans_900Black } from '@expo-google-fonts/public-sans';
 import axios from 'axios';
@@ -23,6 +23,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { PaperProvider, MD3LightTheme as DefaultTheme } from 'react-native-paper';
 import { colors } from './src/theme/colors';
 import { PermissionProvider, usePermissions } from './src/context/PermissionContext';
+import { SnackbarProvider } from './src/context/SnackbarContext';
 
 const theme = {
   ...DefaultTheme,
@@ -58,9 +59,11 @@ export default function App() {
   return (
     <PaperProvider theme={theme}>
       <SafeAreaProvider>
-        <PermissionProvider>
-          <MainApp />
-        </PermissionProvider>
+        <SnackbarProvider>
+          <PermissionProvider>
+            <MainApp />
+          </PermissionProvider>
+        </SnackbarProvider>
       </SafeAreaProvider>
     </PaperProvider>
   );
@@ -73,11 +76,25 @@ function MainApp() {
   // Mode detection for Desktop/Web
   const [appMode, setAppMode] = useState('admin'); // 'admin' or 'terminal'
   const [currentScreen, setCurrentScreen] = useState('Overview');
+  const [isSidebarOpen, setIsSidebarOpen] = useState(
+    Platform.OS === 'web' && Dimensions.get('window').width >= 1024
+  );
 
   useEffect(() => {
     if (Platform.OS === 'web') {
+      // 1. Try URL parameters (for dev mode or deep links)
       const params = new URLSearchParams(window.location.search);
-      const mode = params.get('mode');
+      let mode = params.get('mode');
+
+      // 2. Try Electron-passed arguments (for robust production mode detection)
+      // window.electron is exposed via preload.js
+      if (!mode && window.electron && window.electron.args) {
+        const modeArg = window.electron.args.find(arg => arg.startsWith('--mode='));
+        if (modeArg) {
+          mode = modeArg.split('=')[1];
+        }
+      }
+
       console.log('Detected Mode:', mode);
       if (mode === 'terminal') {
         setAppMode('terminal');
@@ -167,8 +184,20 @@ function MainApp() {
 
   return (
     <ResponsiveLayout
-      header={<Header />}
-      sidebar={<Sidebar currentScreen={currentScreen} onNavigate={setCurrentScreen} />}
+      header={<Header onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} />}
+      sidebar={<Sidebar 
+        currentScreen={currentScreen} 
+        onNavigate={(screen) => {
+          setCurrentScreen(screen);
+          // Only auto-close sidebar on navigate if on mobile
+          if (Dimensions.get('window').width < 1024) {
+            setIsSidebarOpen(false);
+          }
+        }} 
+        isCollapsed={Dimensions.get('window').width >= 1024 ? !isSidebarOpen : false}
+      />}
+      isSidebarOpen={isSidebarOpen}
+      onCloseSidebar={() => setIsSidebarOpen(false)}
     >
       {renderScreen()}
     </ResponsiveLayout>

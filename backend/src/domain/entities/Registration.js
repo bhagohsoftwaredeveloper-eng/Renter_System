@@ -19,9 +19,11 @@ class Registration {
     mealTicketExpirationDate = null,
     biometricTemplate = null,
     mealType = 'Non-Veggie',
+    registrationNumber = null,
     createdAt
   }) {
     this.id = id;
+    this.registrationNumber = registrationNumber;
     this.name = name;
     this.firstName = firstName;
     this.lastName = lastName;

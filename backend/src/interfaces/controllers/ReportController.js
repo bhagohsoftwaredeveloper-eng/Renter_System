@@ -5,7 +5,8 @@ class ReportController {
 
   async getSummary(req, res) {
     try {
-      const summary = await this.getReportSummary.execute();
+      // Optional ?date=YYYY-MM-DD to view meal attendance for a past day
+      const summary = await this.getReportSummary.execute(req.query.date);
       res.json(summary);
     } catch (error) {
       console.error('Error in ReportController.getSummary:', error);

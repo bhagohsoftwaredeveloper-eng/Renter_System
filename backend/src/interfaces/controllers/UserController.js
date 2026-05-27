@@ -39,7 +39,13 @@ class UserController {
       res.status(201).json(userWithoutPassword);
     } catch (err) {
       console.error(err);
-      res.status(500).json({ error: 'Database error' });
+      if (err.code === '23505') {
+        const detail = err.detail || '';
+        if (detail.includes('username')) return res.status(400).json({ error: 'Username already exists' });
+        if (detail.includes('email')) return res.status(400).json({ error: 'Email already exists' });
+        return res.status(400).json({ error: 'Duplicate record already exists' });
+      }
+      res.status(500).json({ error: 'Database error: ' + (err.message || 'Unknown error') });
     }
   }
 
@@ -54,17 +60,28 @@ class UserController {
       res.json(userWithoutPassword);
     } catch (err) {
       console.error(err);
-      res.status(500).json({ error: 'Database error' });
+      if (err.code === '23505') {
+        const detail = err.detail || '';
+        if (detail.includes('username')) return res.status(400).json({ error: 'Username already exists' });
+        if (detail.includes('email')) return res.status(400).json({ error: 'Email already exists' });
+        return res.status(400).json({ error: 'Duplicate record already exists' });
+      }
+      res.status(500).json({ error: 'Database error: ' + (err.message || 'Unknown error') });
     }
   }
 
   async delete(req, res) {
     try {
       const { id } = req.params;
+      console.log(`[UserController] Delete request received for ID: ${id}`);
       await this.deleteUser.execute(id);
+      console.log(`[UserController] Delete SUCCESS for ID: ${id}`);
       res.status(204).send();
     } catch (err) {
       console.error(err);
+      if (err.code === 'HAS_TRANSACTIONS' || err.code === 'IS_ADMIN') {
+        return res.status(200).json({ success: false, error: err.message, code: err.code });
+      }
       res.status(500).json({ error: 'Database error' });
     }
   }

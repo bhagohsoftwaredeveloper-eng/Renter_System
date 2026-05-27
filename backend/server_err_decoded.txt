@@ -1,0 +1,57 @@
+[dotenv@17.3.1] injecting env (7) from .env -- tip: ⚙️  enable debug logging with { debug: true }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚡️ secrets for agents: https://dotenvx.com/as2
+[2026-04-01T02:24:56.142Z] DB Connection SUCCESS: Database is reachable.
+[2026-04-01T02:24:56.145Z] Server running on port 5005 with Clean Architecture
+[MealTicketController] Generating ticket. RID: 1, Type: undefined
+[GenerateMealTicket] Standard lookup for ID: 1
+[GenerateMealTicket] Checking authorization for RID 1. canGenerateMealTicket: true
+[GenerateMealTicket] Generating ticket number for RID 1...
+[GenerateMealTicket] Saving ticket MT-20260401-KGOG for RID 1...
+[GenerateMealTicket] Ticket MT-20260401-KGOG saved successfully.
+[MealTicketController] Ticket generated: MT-20260401-KGOG
+[MealTicketController] Generating ticket. RID: null, Type: null
+[GenerateMealTicket] Attempting identification...
+[GenerateMealTicket] Sending 6 candidates to Bridge.
+[GenerateMealTicket] Bridge Response: status=SUCCESS, matchedIndex=-1
+[GenerateMealTicket] Identification failed: Fingerprint not recognized
+[GenerateMealTicket] Identification error: Biometric identification failed: Fingerprint not recognized
+node : 
+[MealTicketController] 
+Error caught: Error: 
+Biometric 
+identification failed: 
+Fingerprint not 
+recognized
+At line:1 char:1
++ node server.js > 
+server_out.log 2>&1
++ ~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~
+    + CategoryInfo     
+         : NotSpecifi  
+  ed: ([MealTicketCo   
+ nt... not recogniz    
+ed:String) [], Rem    
+oteException
+    + FullyQualifiedEr 
+   rorId : NativeComm  
+  andError
+ 
+    at GenerateMealTick
+et.execute (D:\BHAGOH 
+PROJECT\Renter Systems\
+backend\src\application
+\use-cases\GenerateMeal
+Ticket.js:51:15)
+    at process.processT
+icksAndRejections (node
+:internal/process/task_
+queues:105:5)
+    at async MealTicket
+Controller.generate 
+(D:\BHAGOH 
+PROJECT\Renter Systems\
+backend\src\interfaces\
+controllers\MealTicketC
+ontroller.js:14:26)
+[MealTicketController] Sending 403 with error: "Biometric identification failed: Fingerprint not recognized"

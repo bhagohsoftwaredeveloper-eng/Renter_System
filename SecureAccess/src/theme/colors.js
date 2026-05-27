@@ -19,6 +19,8 @@ export const colors = {
   amber600: "#d97706",
   rose500: "#f43f5e",
   rose600: "#e11d48",
+  rose700: "#be123c",
+  rose800: "#9f1239",
   indigo50: "#eef2ff",
   indigo100: "#e0e7ff",
   indigo600: "#4f46e5",

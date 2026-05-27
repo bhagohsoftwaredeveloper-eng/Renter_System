@@ -24,12 +24,14 @@ import {
 import axios from 'axios';
 import { colors } from '../theme/colors';
 import { Table } from '../components/Table';
+import { CircleCheckbox } from '../components/CircleCheckbox';
 import { BiometricTerminal } from './BiometricTerminal';
 import { usePermissions } from '../context/PermissionContext';
+import { useSnackbar } from '../context/SnackbarContext';
 import { BiometricService } from '../utils/biometric';
 import { PERMISSIONS, ROLE_PERMISSIONS, ROLES } from '../utils/permissions';
 
-import { API_BASE_URL } from '../utils/api';
+import { API_BASE_URL, BRIDGE_BASE_URL } from '../utils/api';
 import { createAuditLog } from '../utils/audit';
 
 const API_URL = `${API_BASE_URL}/registrations`; 
@@ -88,6 +90,9 @@ export const Registrations = () => {
   const [editId, setEditId] = useState(null);
   const [openMenuId, setOpenMenuId] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [transactionError, setTransactionError] = useState(false);
+  const [page, setPage] = useState(0);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
   const theme = useTheme();
 
   
@@ -106,10 +111,13 @@ export const Registrations = () => {
     biometricTemplate: null,
     mealType: 'Non-Veggie'
   });
-  const { userRole, isAuthenticated } = usePermissions();
+  const { userRole, user, isAuthenticated } = usePermissions();
+  const { showSnackbar } = useSnackbar();
   const [isFingerprinting, setIsFingerprinting] = useState(false);
   const [fingerprintProgress, setFingerprintProgress] = useState(0);
   const [scanCount, setScanCount] = useState(0);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -147,6 +155,14 @@ export const Registrations = () => {
     });
   }, [data, search]);
 
+  useEffect(() => {
+    setPage(0);
+  }, [search]);
+
+  const paginatedData = useMemo(() => {
+    return filteredData.slice(page * itemsPerPage, (page + 1) * itemsPerPage);
+  }, [filteredData, page, itemsPerPage]);
+
 
 
   const handleEditPress = (item) => {
@@ -164,7 +180,8 @@ export const Registrations = () => {
       imd: item.imd || '',
       hasFingerprint: item.hasFingerprint || item.has_fingerprint || false,
       biometricTemplate: item.biometricTemplate || item.biometric_template || null,
-      mealType: item.mealType || item.meal_type || 'Non-Veggie'
+      mealType: item.mealType || item.meal_type || 'Non-Veggie',
+      registrationNumber: item.registrationNumber || item.registration_number || ''
     });
     setIsModalVisible(true);
   };
@@ -176,23 +193,33 @@ export const Registrations = () => {
   const confirmDelete = async () => {
     if (!deleteTarget) return;
     try {
+      setIsDeleting(true);
       const renterToDelete = data.find(r => r.id === deleteTarget.id);
-      await axios.delete(`${API_URL}/${deleteTarget.id}`);
+      const response = await axios.delete(`${API_URL}/${deleteTarget.id}`);
+      
+      if (response.data && response.data.success === false && response.data.code === 'HAS_TRANSACTIONS') {
+        setTransactionError(true);
+        setDeleteTarget(null);
+        return;
+      }
+
       setData(prev => prev.filter(r => r.id !== deleteTarget.id));
       
       await createAuditLog({
-        admin: userRole,
-        adminId: userRole,
+        admin: user?.name || userRole,
+        adminId: user?.username || userRole,
         type: 'Renter Deletion',
         details: `Deleted renter: ${renterToDelete?.firstName} ${renterToDelete?.lastName}`,
         subDetails: `Unit: ${renterToDelete?.unit || `Room ${renterToDelete?.roomNo}`}`,
         status: 'Success'
       });
+      showSnackbar(`Deleted ${renterToDelete?.firstName || 'renter'} ${renterToDelete?.lastName || ''}.`.trim(), 'success');
     } catch (error) {
       console.error('Error deleting registration:', error);
-      Alert.alert('Error', 'Failed to delete registration from database.');
+      showSnackbar('Failed to delete registration.', 'error');
     } finally {
       setDeleteTarget(null);
+      setIsDeleting(false);
     }
   };
 
@@ -211,16 +238,18 @@ export const Registrations = () => {
       imd: item.imd || '',
       hasFingerprint: item.hasFingerprint || item.has_fingerprint || false,
       biometricTemplate: item.biometricTemplate || item.biometric_template || null,
-      mealType: item.mealType || item.meal_type || 'Non-Veggie'
+      mealType: item.mealType || item.meal_type || 'Non-Veggie',
+      registrationNumber: item.registrationNumber || item.registration_number || ''
     });
     setIsModalVisible(true);
   };
 
   const handleSaveRegistration = async () => {
     if (!formData.firstName || !formData.lastName || !formData.email || !formData.roomNo) {
-      Alert.alert('Validation Error', 'Please fill in all required fields (First Name, Last Name, Email, Room No)');
+      showSnackbar('Please fill in First Name, Last Name, Email, and Room No.', 'error');
       return;
     }
+    setIsSaving(true);
 
     const fullName = `${formData.firstName} ${formData.lastName}`;
     const initials = (formData.firstName[0] || '') + (formData.lastName[0] || '');
@@ -247,8 +276,8 @@ export const Registrations = () => {
         await fetchRegistrations();
         
         await createAuditLog({
-          admin: userRole,
-          adminId: userRole,
+          admin: user?.name || userRole,
+          adminId: user?.username || userRole,
           type: 'Renter Update',
           details: `Updated renter: ${formData.firstName} ${formData.lastName}`,
           subDetails: `Unit: ${entryData.unit}`,
@@ -262,7 +291,7 @@ export const Registrations = () => {
 
         // Log registration approval dynamically
         try {
-          await axios.post('http://localhost:5000/api/access-logs', {
+          await axios.post(`${API_BASE_URL}/access-logs`, {
             name: entryData.name,
             dept: 'New Registration',
             point: 'Admin Console',
@@ -276,8 +305,8 @@ export const Registrations = () => {
         }
 
         await createAuditLog({
-          admin: userRole, // Name not easily available here, using role
-          adminId: userRole,
+          admin: user?.name || userRole,
+          adminId: user?.username || userRole,
           type: 'Renter Registration',
           details: `Registered new renter: ${formData.firstName} ${formData.lastName}`,
           subDetails: `Unit: ${entryData.unit}`,
@@ -285,11 +314,14 @@ export const Registrations = () => {
         });
       }
       
+      showSnackbar(`Renter ${isEditing ? 'updated' : 'registered'} successfully.`, 'success');
       resetForm();
       setIsModalVisible(false);
     } catch (error) {
       console.error('Error saving registration:', error);
-      Alert.alert('Error', `Failed to ${isEditing ? 'update' : 'save'} registration to database.`);
+      showSnackbar(`Failed to ${isEditing ? 'update' : 'save'} registration.`, 'error');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -307,7 +339,8 @@ export const Registrations = () => {
       imd: '',
       hasFingerprint: false,
       biometricTemplate: null,
-      mealType: 'Non-Veggie'
+      mealType: 'Non-Veggie',
+      registrationNumber: ''
     });
     setIsEditing(false);
     setIsViewing(false);
@@ -335,24 +368,43 @@ export const Registrations = () => {
       
       if (captureResult.status === 'SUCCESS') {
         console.log('SDK Enrollment Capture Success');
+
+        // One renter = one biometric: make sure this fingerprint isn't already
+        // enrolled to someone else before accepting the capture. excludeId lets a
+        // renter re-enroll their OWN print without being flagged as a duplicate.
+        const dupRes = await axios.post(`${API_BASE_URL}/registrations/check-biometric`, {
+          biometricTemplate: captureResult.template,
+          excludeId: editId || null
+        });
+
+        if (dupRes.data && dupRes.data.exists) {
+          const who = dupRes.data.registration?.name || 'another renter';
+          showSnackbar(`This biometric is already registered to ${who}. One renter can only have one biometric.`, 'error');
+          setFingerprintProgress(0);
+          setScanCount(0);
+          setIsFingerprinting(false);
+          return; // do NOT accept the capture
+        }
+
         setFingerprintProgress(100);
-        setFormData(prev => ({ 
-          ...prev, 
-          hasFingerprint: true, 
-          biometricTemplate: captureResult.template 
+        setFormData(prev => ({
+          ...prev,
+          hasFingerprint: true,
+          biometricTemplate: captureResult.template
         }));
         setScanCount(0);
+        showSnackbar('Fingerprint captured successfully.', 'success');
         setTimeout(() => setIsFingerprinting(false), 800);
       }
     } catch (err) {
       console.error('Biometric Enrollment Failed:', err);
-      let errorMsg = err.message || 'Capture failed';
-      
+      let errorMsg = err.response?.data?.error || err.message || 'Capture failed';
+
       if (errorMsg.includes('DETECTED') || errorMsg.includes('unreachable') || errorMsg.includes('refused')) {
         errorMsg = 'BIOMETRIC BRIDGE IS UNREACHABLE. PLEASE ENSURE THE .NET BRIDGE IS RUNNING (dotnet run --project BiometricBridge) OR THE HID WEB SDK IS ACTIVE (VISIT HTTPS://127.0.0.1:52181/GET_CONNECTION).';
       }
       
-      Alert.alert('Hardware Error', errorMsg);
+      showSnackbar(errorMsg, 'error');
       setIsFingerprinting(false);
       setScanCount(0);
     }
@@ -448,105 +500,59 @@ export const Registrations = () => {
             <Text variant="bodyMedium" style={{ marginTop: 16, color: colors.slate500 }}>Loading registrations...</Text>
           </View>
         ) : viewType === 'table' ? (
-          <Table 
-            headers={['Applicant', 'Student Phone', 'Room', 'Meal Type', 'IMD', 'Date', 'Actions']}
-            columnFlex={[2, 1.5, 1, 1.2, 1, 1.2, 1]}
-            data={filteredData}
-            renderRow={(item) => (
-              <>
-                <DataTable.Cell style={{ flex: 2 }}>
-                  <View style={styles.userInfo}>
-                    <Avatar.Text 
-                      size={32} 
-                      label={item.initials || (item.name ? item.name.substring(0, 2).toUpperCase() : '??')} 
-                      style={styles.avatar}
-                      labelStyle={styles.avatarLabel}
-                    />
-                    <View style={{ marginLeft: 12 }}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                        <Text variant="bodyMedium" style={{ fontWeight: 'bold' }}>{item.name || `${item.firstName || item.first_name || ''} ${item.lastName || item.last_name || ''}`}</Text>
-                        {(item.hasFingerprint || item.has_fingerprint) && <IconButton icon="fingerprint" size={14} iconColor={colors.primary} style={{ margin: 0, padding: 0 }} />}
-                      </View>
-                      <Text variant="bodySmall" style={{ color: colors.slate500 }}>{item.email}</Text>
-                    </View>
-                  </View>
-                </DataTable.Cell>
-                <DataTable.Cell style={{ flex: 1.5 }}><Text variant="bodySmall">{item.studentPhone || item.student_phone || '-'}</Text></DataTable.Cell>
-                <DataTable.Cell style={{ flex: 1 }}><Text variant="bodySmall">{item.unit || `Room ${item.roomNo}`}</Text></DataTable.Cell>
-                <DataTable.Cell style={{ flex: 1.2 }}>
-                  <Surface style={[
-                    styles.statusBadge, 
-                    item.mealType === 'Veggie' || item.meal_type === 'Veggie' ? { backgroundColor: 'rgba(16, 185, 129, 0.1)' } : { backgroundColor: 'rgba(244, 63, 94, 0.1)' }
-                  ]} elevation={0}>
-                    <Text variant="labelSmall" style={[
-                      styles.statusBadgeText, 
-                      item.mealType === 'Veggie' || item.meal_type === 'Veggie' ? { color: colors.emerald600 } : { color: colors.rose600 }
-                    ]}>{item.mealType || item.meal_type || 'Non-Veggie'}</Text>
-                  </Surface>
-                </DataTable.Cell>
-                <DataTable.Cell style={{ flex: 1 }}><Text variant="bodySmall">{item.imd || '-'}</Text></DataTable.Cell>
-
-                <DataTable.Cell style={{ flex: 1.2 }}><Text variant="bodySmall">{item.date ? new Date(item.date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '-'}</Text></DataTable.Cell>
-                <DataTable.Cell numeric style={{ flex: 1 }}>
-                  <Menu
-                    visible={openMenuId === item.id}
-                    onDismiss={() => setOpenMenuId(null)}
-                    anchor={
-                      <IconButton
-                        icon="dots-vertical"
-                        size={20}
-                        iconColor={colors.slate500}
-                        onPress={() => setOpenMenuId(openMenuId === item.id ? null : item.id)}
+          <>
+            <Table 
+              headers={['ID', 'Applicant', 'Student Phone', 'Room', 'Meal Type', 'IMD', 'Date', 'Actions']}
+              columnFlex={[0.8, 2, 1.5, 1, 1.2, 1, 1.2, 1]}
+              data={paginatedData}
+              renderRow={(item) => (
+                <>
+                  <DataTable.Cell style={{ flex: 0.8 }}>
+                    <Text variant="labelMedium" style={{ color: colors.primary, fontWeight: 'bold' }}>{item.registrationNumber || item.registration_number || '-'}</Text>
+                  </DataTable.Cell>
+                  <DataTable.Cell style={{ flex: 2 }}>
+                    <View style={styles.userInfo}>
+                      <Avatar.Text 
+                        size={32} 
+                        label={item.initials || (item.name ? item.name.substring(0, 2).toUpperCase() : '??')} 
+                        style={styles.avatar}
+                        labelStyle={styles.avatarLabel}
                       />
-                    }
-                  >
-                    <Menu.Item
-                      leadingIcon="eye-outline"
-                      onPress={() => { setOpenMenuId(null); handleViewDetails(item); }}
-                      title="View Details"
-                    />
-                    <Menu.Item
-                      leadingIcon="pencil-outline"
-                      onPress={() => { setOpenMenuId(null); handleEditPress(item); }}
-                      title="Edit"
-                    />
-                    <Divider />
-                    <Menu.Item
-                      leadingIcon="trash-can-outline"
-                      onPress={() => { setOpenMenuId(null); handleDeleteRegistration(item); }}
-                      title="Delete"
-                      titleStyle={{ color: '#F43F5E' }}
-                    />
-                  </Menu>
-                </DataTable.Cell>
-              </>
-            )}
-          />
-        ) : (
-          <View style={styles.cardGrid}>
-            {filteredData.map((item) => (
-              <Card key={item.id} style={styles.itemCard}>
-                <Card.Content>
-                  <View style={styles.cardHeader}>
-                    <Avatar.Text 
-                      size={40} 
-                      label={item.initials || (item.name ? item.name.substring(0, 2).toUpperCase() : '??')} 
-                      style={styles.avatar}
-                      labelStyle={styles.avatarLabel}
-                    />
-                    <View style={{ flex: 1, marginLeft: 12 }}>
-                      <Text variant="bodyLarge" style={{ fontWeight: 'bold' }}>{item.name || `${item.first_name} ${item.last_name}`}</Text>
-                      <Text variant="bodySmall" style={{ color: colors.slate500 }}>{item.email}</Text>
+                      <View style={{ marginLeft: 12 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                          <Text variant="bodyMedium" style={{ fontWeight: 'bold' }}>{item.name || `${item.firstName || item.first_name || ''} ${item.lastName || item.last_name || ''}`}</Text>
+                          {(item.hasFingerprint || item.has_fingerprint) && <IconButton icon="fingerprint" size={14} iconColor={colors.primary} style={{ margin: 0, padding: 0 }} />}
+                        </View>
+                        <Text variant="bodySmall" style={{ color: colors.slate500 }}>{item.email}</Text>
+                      </View>
                     </View>
+                  </DataTable.Cell>
+                  <DataTable.Cell style={{ flex: 1.5 }}><Text variant="bodySmall">{item.studentPhone || item.student_phone || '-'}</Text></DataTable.Cell>
+                  <DataTable.Cell style={{ flex: 1 }}><Text variant="bodySmall">{item.unit || `Room ${item.roomNo}`}</Text></DataTable.Cell>
+                  <DataTable.Cell style={{ flex: 1.2 }}>
+                    <Surface style={[
+                      styles.statusBadge, 
+                      item.mealType === 'Veggie' || item.meal_type === 'Veggie' ? { backgroundColor: 'rgba(16, 185, 129, 0.1)' } : { backgroundColor: 'rgba(244, 63, 94, 0.1)' }
+                    ]} elevation={0}>
+                      <Text variant="labelSmall" style={[
+                        styles.statusBadgeText, 
+                        item.mealType === 'Veggie' || item.meal_type === 'Veggie' ? { color: colors.emerald600 } : { color: colors.rose600 }
+                      ]}>{item.mealType || item.meal_type || 'Non-Veggie'}</Text>
+                    </Surface>
+                  </DataTable.Cell>
+                  <DataTable.Cell style={{ flex: 1 }}><Text variant="bodySmall">{item.imd || '-'}</Text></DataTable.Cell>
+
+                  <DataTable.Cell style={{ flex: 1.2 }}><Text variant="bodySmall">{item.date ? new Date(item.date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '-'}</Text></DataTable.Cell>
+                  <DataTable.Cell numeric style={{ flex: 1 }}>
                     <Menu
-                      visible={openMenuId === `card-${item.id}`}
+                      visible={openMenuId === item.id}
                       onDismiss={() => setOpenMenuId(null)}
                       anchor={
                         <IconButton
                           icon="dots-vertical"
                           size={20}
                           iconColor={colors.slate500}
-                          onPress={() => setOpenMenuId(openMenuId === `card-${item.id}` ? null : `card-${item.id}`)}
+                          onPress={() => setOpenMenuId(openMenuId === item.id ? null : item.id)}
                         />
                       }
                     >
@@ -568,32 +574,106 @@ export const Registrations = () => {
                         titleStyle={{ color: '#F43F5E' }}
                       />
                     </Menu>
-                  </View>
-                  
-                  <View style={styles.cardDivider} />
-                  
-                  <View style={styles.cardDetails}>
-                    <View style={styles.detailRow}>
-                      <IconButton icon="phone" size={16} iconColor={colors.slate400} style={{ margin: 0 }} />
-                      <Text variant="bodySmall" style={styles.detailText}>{item.studentPhone || item.student_phone || '-'}</Text>
+                  </DataTable.Cell>
+                </>
+              )}
+            />
+            <DataTable.Pagination
+              page={page}
+              numberOfPages={Math.ceil(filteredData.length / itemsPerPage)}
+              onPageChange={(p) => setPage(p)}
+              label={`${page * itemsPerPage + 1}-${Math.min((page + 1) * itemsPerPage, filteredData.length)} of ${filteredData.length}`}
+              numberOfItemsPerPageList={[10, 20, 50]}
+              numberOfItemsPerPage={itemsPerPage}
+              onItemsPerPageChange={setItemsPerPage}
+              showFastPaginationControls
+              selectPageDropdownLabel={'Rows per page'}
+            />
+          </>
+        ) : (
+          <View style={{ flex: 1 }}>
+            <View style={styles.cardGrid}>
+              {paginatedData.map((item) => (
+                <Card key={item.id} style={styles.itemCard}>
+                  <Card.Content>
+                    <View style={styles.cardHeader}>
+                      <Avatar.Text 
+                        size={40} 
+                        label={item.initials || (item.name ? item.name.substring(0, 2).toUpperCase() : '??')} 
+                        style={styles.avatar}
+                        labelStyle={styles.avatarLabel}
+                      />
+                      <View style={{ flex: 1, marginLeft: 12 }}>
+                        <Text variant="bodyLarge" style={{ fontWeight: 'bold' }}>{item.name || `${item.first_name} ${item.last_name}`}</Text>
+                        <Text variant="bodySmall" style={{ color: colors.slate500 }}>{item.email}</Text>
+                        <Text variant="labelSmall" style={{ color: colors.primary, fontWeight: 'bold', marginTop: 4 }}>ID: {item.registrationNumber || item.registration_number || '-'}</Text>
+                      </View>
+                      <Menu
+                        visible={openMenuId === `card-${item.id}`}
+                        onDismiss={() => setOpenMenuId(null)}
+                        anchor={
+                          <IconButton
+                            icon="dots-vertical"
+                            size={20}
+                            iconColor={colors.slate500}
+                            onPress={() => setOpenMenuId(openMenuId === `card-${item.id}` ? null : `card-${item.id}`)}
+                          />
+                        }
+                      >
+                        <Menu.Item
+                          leadingIcon="eye-outline"
+                          onPress={() => { setOpenMenuId(null); handleViewDetails(item); }}
+                          title="View Details"
+                        />
+                        <Menu.Item
+                          leadingIcon="pencil-outline"
+                          onPress={() => { setOpenMenuId(null); handleEditPress(item); }}
+                          title="Edit"
+                        />
+                        <Divider />
+                        <Menu.Item
+                          leadingIcon="trash-can-outline"
+                          onPress={() => { setOpenMenuId(null); handleDeleteRegistration(item); }}
+                          title="Delete"
+                          titleStyle={{ color: '#F43F5E' }}
+                        />
+                      </Menu>
                     </View>
-                    <View style={styles.detailRow}>
-                      <IconButton icon="office-building" size={16} iconColor={colors.slate400} style={{ margin: 0 }} />
-                      <Text variant="bodySmall" style={styles.detailText}>Room {item.roomNo || item.room_no || '-'}, Floor {item.floorNo || item.floor_no || '-'}</Text>
+                    
+                    <View style={styles.cardDivider} />
+                    
+                    <View style={styles.cardDetails}>
+                      <View style={styles.detailRow}>
+                        <IconButton icon="phone" size={16} iconColor={colors.slate400} style={{ margin: 0 }} />
+                        <Text variant="bodySmall" style={styles.detailText}>{item.studentPhone || item.student_phone || '-'}</Text>
+                      </View>
+                      <View style={styles.detailRow}>
+                        <IconButton icon="office-building" size={16} iconColor={colors.slate400} style={{ margin: 0 }} />
+                        <Text variant="bodySmall" style={styles.detailText}>Room {item.roomNo || item.room_no || '-'}, Floor {item.floorNo || item.floor_no || '-'}</Text>
+                      </View>
+                      <View style={styles.detailRow}>
+                        <IconButton icon="food-apple" size={16} iconColor={colors.slate400} style={{ margin: 0 }} />
+                        <Text variant="bodySmall" style={[
+                          styles.detailText, 
+                          { color: (item.mealType === 'Veggie' || item.meal_type === 'Veggie') ? colors.emerald600 : colors.rose600, fontWeight: 'bold' }
+                        ]}>{item.mealType || item.meal_type || 'Non-Veggie'}</Text>
+                      </View>
                     </View>
-                    <View style={styles.detailRow}>
-                      <IconButton icon="food-apple" size={16} iconColor={colors.slate400} style={{ margin: 0 }} />
-                      <Text variant="bodySmall" style={[
-                        styles.detailText, 
-                        { color: (item.mealType === 'Veggie' || item.meal_type === 'Veggie') ? colors.emerald600 : colors.rose600, fontWeight: 'bold' }
-                      ]}>{item.mealType || item.meal_type || 'Non-Veggie'}</Text>
-                    </View>
-                  </View>
-                  
+                    
 
-                </Card.Content>
-              </Card>
-            ))}
+                  </Card.Content>
+                </Card>
+              ))}
+            </View>
+            <View style={{ paddingVertical: 16 }}>
+              <DataTable.Pagination
+                page={page}
+                numberOfPages={Math.ceil(filteredData.length / itemsPerPage)}
+                onPageChange={(p) => setPage(p)}
+                label={`${page * itemsPerPage + 1}-${Math.min((page + 1) * itemsPerPage, filteredData.length)} of ${filteredData.length}`}
+                showFastPaginationControls
+              />
+            </View>
           </View>
         )}
         {!loading && filteredData.length === 0 && (
@@ -680,6 +760,17 @@ export const Registrations = () => {
                         outlineStyle={{ borderRadius: 12 }}
                       />
                     </View>
+                    {formData.registrationNumber && (
+                      <TextInput
+                        label="Registration ID"
+                        value={formData.registrationNumber}
+                        mode="outlined"
+                        style={[styles.input, { marginBottom: 16 }]}
+                        editable={false}
+                        left={<TextInput.Icon icon="card-account-details" color={colors.primary} />}
+                        outlineStyle={{ borderRadius: 12, borderColor: colors.primary }}
+                      />
+                    )}
                     <TextInput
                       label="Email Address *"
                       value={formData.email}
@@ -813,10 +904,11 @@ export const Registrations = () => {
                 {isViewing ? 'Close' : 'Cancel'}
               </Button>
               {!isViewing && (
-                <Button 
-                  onPress={handleSaveRegistration} 
-                  mode="contained" 
-                  disabled={isFingerprinting}
+                <Button
+                  onPress={handleSaveRegistration}
+                  mode="contained"
+                  loading={isSaving}
+                  disabled={isFingerprinting || isSaving}
                   style={{ borderRadius: 10, overflow: 'hidden' }}
                   contentStyle={{ paddingHorizontal: 16 }}
                 >
@@ -855,9 +947,35 @@ export const Registrations = () => {
               mode="contained"
               buttonColor="#F43F5E"
               onPress={confirmDelete}
+              loading={isDeleting}
+              disabled={isDeleting}
               style={{ borderRadius: 10, minWidth: 100 }}
             >
               Delete
+            </Button>
+          </Dialog.Actions>
+        </Dialog>
+
+        <Dialog
+          visible={transactionError}
+          onDismiss={() => setTransactionError(false)}
+          style={{ borderRadius: 16, maxWidth: 440, alignSelf: 'center', width: '100%' }}
+        >
+          <Dialog.Icon icon="alert-circle-outline" color="#F43F5E" />
+          <Dialog.Title style={{ textAlign: 'center' }}>Deletion Not Allowed</Dialog.Title>
+          <Dialog.Content>
+            <Text variant="bodyMedium" style={{ textAlign: 'center', color: colors.slate600 }}>
+              Cant delete this Data have transactions
+            </Text>
+          </Dialog.Content>
+          <Dialog.Actions style={{ justifyContent: 'center', paddingBottom: 16 }}>
+            <Button
+              mode="contained"
+              buttonColor="#F43F5E"
+              onPress={() => setTransactionError(false)}
+              style={{ borderRadius: 10, minWidth: 100 }}
+            >
+              OK
             </Button>
           </Dialog.Actions>
         </Dialog>
@@ -878,7 +996,14 @@ export const ActiveRenters = () => {
   const [expirationTargetId, setExpirationTargetId] = useState(null);
   const [expirationDate, setExpirationDate] = useState('');
   const [expirationDays, setExpirationDays] = useState('');
+  const [isSavingExpiration, setIsSavingExpiration] = useState(false);
+  const [togglingId, setTogglingId] = useState(null);
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [isBulkProcessing, setIsBulkProcessing] = useState(false);
   const { userRole, isAuthenticated } = usePermissions();
+  const { showSnackbar } = useSnackbar();
+  const [page, setPage] = useState(0);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
   const theme = useTheme();
 
   useEffect(() => {
@@ -913,7 +1038,8 @@ export const ActiveRenters = () => {
   const handleExpirationSubmit = async () => {
     try {
       if (!expirationTargetId) return;
-      
+      setIsSavingExpiration(true);
+
       const payload = {
         expirationDate: expirationDate || null
       };
@@ -945,13 +1071,15 @@ export const ActiveRenters = () => {
           subDetails: `Unit: ${renter?.unit || `Room ${renter?.roomNo}`}`,
           status: 'Success'
         });
+        showSnackbar(`Expiration ${expirationDate ? `set to ${expirationDate}` : 'cleared'}.`, 'success');
       }
     } catch (error) {
       console.error('Error setting expiration:', error);
-      Alert.alert('Error', 'Failed to update expiration.');
+      showSnackbar('Failed to update expiration.', 'error');
     } finally {
       setExpirationDays('');
       setExpirationTargetId(null);
+      setIsSavingExpiration(false);
     }
   };
 
@@ -978,10 +1106,70 @@ export const ActiveRenters = () => {
     return data.filter(item => {
       const name = item.name || `${item.firstName} ${item.lastName}`;
       const unit = item.unit || `Room ${item.roomNo}`;
-      return name.toLowerCase().includes(search.toLowerCase()) || 
+      return name.toLowerCase().includes(search.toLowerCase()) ||
              unit.toLowerCase().includes(search.toLowerCase());
     });
   }, [data, search]);
+
+  useEffect(() => {
+    setPage(0);
+    setSelectedIds([]);
+  }, [search]);
+
+  const allSelected = selectedIds.length > 0 && selectedIds.length === filteredData.length;
+  const someSelected = selectedIds.length > 0 && !allSelected;
+
+  const toggleSelectAll = () => {
+    if (allSelected) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(filteredData.map(r => r.id));
+    }
+  };
+
+  const toggleSelectOne = (id) => {
+    setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  };
+
+  const handleBulkAllowance = async (allowed) => {
+    if (selectedIds.length === 0) return;
+    try {
+      setIsBulkProcessing(true);
+      const ids = [...selectedIds];
+      const results = await Promise.allSettled(
+        ids.map(id => axios.patch(`${API_BASE_URL}/registrations/${id}/meal-ticket-allowance`, { allowed }))
+      );
+      const successIds = ids.filter((id, i) => results[i].status === 'fulfilled');
+      const failCount = ids.length - successIds.length;
+
+      if (successIds.length > 0) {
+        setData(prev => prev.map(item => successIds.includes(item.id) ? { ...item, canGenerateMealTicket: allowed } : item));
+        await createAuditLog({
+          admin: userRole,
+          adminId: userRole,
+          type: 'Bulk Allowance Toggle',
+          details: `${allowed ? 'Enabled' : 'Disabled'} meal ticket for ${successIds.length} renter(s)`,
+          subDetails: failCount ? `${failCount} failed` : 'All succeeded',
+          status: failCount ? 'Partial' : 'Success'
+        });
+      }
+
+      showSnackbar(
+        `Meal ticket ${allowed ? 'enabled' : 'disabled'} for ${successIds.length} renter(s)${failCount ? `, ${failCount} failed` : ''}.`,
+        failCount ? 'warning' : 'success'
+      );
+      setSelectedIds([]);
+    } catch (error) {
+      console.error('Error bulk toggling allowance:', error);
+      showSnackbar('Failed to update meal ticket allowance.', 'error');
+    } finally {
+      setIsBulkProcessing(false);
+    }
+  };
+
+  const paginatedData = useMemo(() => {
+    return filteredData.slice(page * itemsPerPage, (page + 1) * itemsPerPage);
+  }, [filteredData, page, itemsPerPage]);
 
   const stats = useMemo(() => ({
     total: data.length,
@@ -998,6 +1186,7 @@ export const ActiveRenters = () => {
 
   const handleToggleAllowance = async (id, currentAllowed) => {
     try {
+      setTogglingId(id);
       const newAllowed = !currentAllowed;
       const renter = data.find(r => r.id === id);
       const response = await axios.patch(`${API_BASE_URL}/registrations/${id}/meal-ticket-allowance`, {
@@ -1015,10 +1204,13 @@ export const ActiveRenters = () => {
           subDetails: `Unit: ${renter?.unit || `Room ${renter?.roomNo}`}`,
           status: 'Success'
         });
+        showSnackbar(`Meal ticket ${newAllowed ? 'enabled' : 'disabled'} for ${renter?.firstName || 'renter'}.`, 'success');
       }
     } catch (error) {
       console.error('Error toggling allowance:', error);
-      Alert.alert('Error', 'Failed to update meal ticket allowance.');
+      showSnackbar('Failed to update meal ticket allowance.', 'error');
+    } finally {
+      setTogglingId(null);
     }
   };
 
@@ -1084,6 +1276,19 @@ export const ActiveRenters = () => {
           style={styles.searchBar}
           outlineStyle={{ borderRadius: 12, borderColor: colors.slate200 }}
         />
+        {viewType === 'grid' && (
+          <View style={styles.toolbarSelectAll}>
+            <CircleCheckbox
+              status={allSelected ? 'checked' : someSelected ? 'indeterminate' : 'unchecked'}
+              onPress={toggleSelectAll}
+              uncheckedColor={colors.slate500}
+              style={{ marginRight: 8 }}
+            />
+            <Text variant="labelMedium" style={{ color: colors.slate600, fontWeight: '700' }}>
+              {allSelected ? 'Deselect all' : 'Select all'}
+            </Text>
+          </View>
+        )}
         <View style={styles.viewToggleGroup}>
           <IconButton 
             icon="view-list" 
@@ -1104,6 +1309,71 @@ export const ActiveRenters = () => {
         </View>
       </View>
 
+      {selectedIds.length > 0 && (
+        <Surface style={styles.bulkActionBar} elevation={2}>
+          <View style={styles.bulkAccent} />
+          <Avatar.Icon
+            size={40}
+            icon="checkbox-multiple-marked-circle"
+            style={{ backgroundColor: colors.indigo100 }}
+            color={colors.primary}
+          />
+          <View style={{ marginLeft: 14 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <Text variant="titleSmall" style={{ fontWeight: '800', color: colors.slate800 }}>
+                {selectedIds.length} selected
+              </Text>
+              <Surface style={styles.bulkCountBadge} elevation={0}>
+                <Text variant="labelSmall" style={{ color: colors.primary, fontWeight: '800' }}>
+                  {selectedIds.length}/{filteredData.length}
+                </Text>
+              </Surface>
+            </View>
+            <Text variant="bodySmall" style={{ color: colors.slate500 }}>
+              Apply meal ticket access in bulk
+            </Text>
+          </View>
+
+          <View style={styles.bulkRight}>
+            <Button mode="text" onPress={toggleSelectAll} disabled={isBulkProcessing} compact textColor={colors.slate600}>
+              {allSelected ? 'Deselect all' : 'Select all'}
+            </Button>
+            <View style={styles.bulkVDivider} />
+            <Button
+              mode="contained"
+              icon="check-circle"
+              onPress={() => handleBulkAllowance(true)}
+              loading={isBulkProcessing}
+              disabled={isBulkProcessing}
+              buttonColor={colors.emerald600}
+              style={styles.bulkBtn}
+              compact
+            >
+              Allow
+            </Button>
+            <Button
+              mode="contained"
+              icon="cancel"
+              onPress={() => handleBulkAllowance(false)}
+              disabled={isBulkProcessing}
+              buttonColor={colors.rose600}
+              style={styles.bulkBtn}
+              compact
+            >
+              Restrict
+            </Button>
+            <IconButton
+              icon="close"
+              size={20}
+              onPress={() => setSelectedIds([])}
+              disabled={isBulkProcessing}
+              iconColor={colors.slate500}
+              style={{ margin: 0 }}
+            />
+          </View>
+        </Surface>
+      )}
+
       <View style={[viewType === 'grid' && { flex: 1 }]}>
         {loading ? (
           <View style={styles.loadingContainer}>
@@ -1112,12 +1382,26 @@ export const ActiveRenters = () => {
           </View>
         ) : viewType === 'table' ? (
           <Card style={styles.tableCard}>
-            <Table 
-              headers={['Renter', 'Unit', 'Meal Type', 'Expires On', 'Allow Meal Ticket', 'Actions']}
-              columnFlex={[1.5, 0.8, 1, 1, 1.2, 0.8]}
-              data={filteredData}
+            <Table
+              headers={[
+                <CircleCheckbox
+                  key="select-all"
+                  status={allSelected ? 'checked' : someSelected ? 'indeterminate' : 'unchecked'}
+                  onPress={toggleSelectAll}
+                  uncheckedColor={colors.slate500}
+                />,
+                'Renter', 'Unit', 'Meal Type', 'Expires On', 'Allow Meal Ticket', 'Actions'
+              ]}
+              columnFlex={[0.5, 1.5, 0.8, 1, 1, 1.2, 0.8]}
+              data={paginatedData}
               renderRow={(item) => (
                 <>
+                  <DataTable.Cell style={{ flex: 0.5 }}>
+                    <CircleCheckbox
+                      status={selectedIds.includes(item.id) ? 'checked' : 'unchecked'}
+                      onPress={() => toggleSelectOne(item.id)}
+                    />
+                  </DataTable.Cell>
                   <DataTable.Cell style={{ flex: 1.5 }}>
                     <View style={styles.userInfo}>
                       <Avatar.Text 
@@ -1163,9 +1447,10 @@ export const ActiveRenters = () => {
                   </DataTable.Cell>
                   <DataTable.Cell numeric style={{ flex: 1.2 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, justifyContent: 'flex-end' }}>
-                      <Switch 
-                        value={item.canGenerateMealTicket} 
+                      <Switch
+                        value={item.canGenerateMealTicket}
                         onValueChange={() => handleToggleAllowance(item.id, item.canGenerateMealTicket)}
+                        disabled={togglingId === item.id}
                         color={colors.primary}
                       />
                       <Text variant="labelSmall" style={{ color: item.canGenerateMealTicket ? (isExpired(item) ? colors.amber600 : colors.primary) : colors.slate400, minWidth: 80, textAlign: 'left' }}>
@@ -1192,84 +1477,116 @@ export const ActiveRenters = () => {
                 </>
               )}
             />
+            <DataTable.Pagination
+              page={page}
+              numberOfPages={Math.ceil(filteredData.length / itemsPerPage)}
+              onPageChange={(p) => setPage(p)}
+              label={`${page * itemsPerPage + 1}-${Math.min((page + 1) * itemsPerPage, filteredData.length)} of ${filteredData.length}`}
+              numberOfItemsPerPageList={[10, 20, 50]}
+              numberOfItemsPerPage={itemsPerPage}
+              onItemsPerPageChange={setItemsPerPage}
+              showFastPaginationControls
+              selectPageDropdownLabel={'Rows per page'}
+            />
           </Card>
         ) : (
-          <View style={styles.cardGrid}>
-            {filteredData.map((item) => (
-              <Card key={item.id} style={styles.itemCard}>
-                <Card.Content>
-                  <View style={styles.cardHeader}>
-                    <Avatar.Text 
-                      size={40} 
-                      label={item.initials || (item.name ? item.name.substring(0, 2).toUpperCase() : '??')} 
-                      style={[styles.avatar, { backgroundColor: colors.slate800 }]} 
-                      labelStyle={styles.avatarLabel} 
-                    />
-                    <View style={{ flex: 1, marginLeft: 12 }}>
-                      <Text variant="bodyLarge" style={{ fontWeight: 'bold' }}>{item.name || `${item.firstName} ${item.lastName}`}</Text>
-                      <Text variant="bodySmall" style={{ color: colors.slate500 }}>{item.email}</Text>
-                    </View>
-                    <Surface style={[
-                      styles.statusBadge, 
-                      styles.standardBadge
-                    ]} elevation={0}>
-                      <Text variant="labelSmall" style={[
-                        styles.statusBadgeText, 
-                        styles.standardText
-                      ]}>Standard</Text>
-                    </Surface>
-                  </View>
-                  
-                  <View style={styles.cardDivider} />
-                  
-                  <View style={styles.cardDetails}>
-                    <View style={styles.detailRow}>
-                      <IconButton icon="office-building" size={16} iconColor={colors.slate400} style={{ margin: 0 }} />
-                      <Text variant="bodySmall" style={styles.detailText}>{item.unit || `Room ${item.roomNo}`}</Text>
-                    </View>
-                    <View style={styles.detailRow}>
-                      <IconButton icon="calendar" size={16} iconColor={colors.slate400} style={{ margin: 0 }} />
-                      <Text variant="bodySmall" style={styles.detailText}>Registered: {item.date ? new Date(item.date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '-'}</Text>
-                    </View>
-                    <View style={styles.detailRow}>
-                      <IconButton icon="food-apple" size={16} iconColor={colors.slate400} style={{ margin: 0 }} />
-                      <Text variant="bodySmall" style={[
-                        styles.detailText, 
-                        { color: (item.mealType === 'Veggie' || item.meal_type === 'Veggie') ? colors.emerald600 : colors.rose600, fontWeight: 'bold' }
-                      ]}>{item.mealType || item.meal_type || 'Non-Veggie'}</Text>
-                    </View>
-                    {item.mealTicketExpirationDate && (
-                      <View style={styles.detailRow}>
-                        <IconButton icon="calendar-clock" size={16} iconColor={isExpired(item) ? colors.amber600 : colors.slate400} style={{ margin: 0 }} />
-                        <Text variant="bodySmall" style={[styles.detailText, isExpired(item) && { color: colors.amber600, fontWeight: 'bold' }]}>
-                          Expires: {new Date(item.mealTicketExpirationDate).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
-                        </Text>
-                      </View>
-                    )}
-                  </View>
-                                    <View style={styles.cardActions}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-                        <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: item.canGenerateMealTicket ? (isExpired(item) ? colors.amber500 : '#10B981') : colors.slate300, marginRight: 8 }} />
-                        <Text variant="labelSmall" style={{ color: item.canGenerateMealTicket ? (isExpired(item) ? colors.amber600 : '#10B981') : colors.slate500, fontWeight: 'bold' }}>
-                          {item.canGenerateMealTicket ? (isExpired(item) ? 'ALLOWED (EXPIRED)' : 'ALLOWED') : 'RESTRICTED'}
-                        </Text>
-                      </View>
-                      <IconButton 
-                        icon="calendar-remove" 
-                        size={20} 
-                        iconColor={isExpired(item) ? colors.amber600 : colors.slate400} 
-                        onPress={() => {
-                          setExpirationTargetId(item.id);
-                          setExpirationDate(item.mealTicketExpirationDate ? item.mealTicketExpirationDate.split('T')[0] : '');
-                          setExpirationDays('');
-                          setIsExpirationModalVisible(true);
-                        }} 
+          <View style={{ flex: 1 }}>
+            <View style={styles.cardGrid}>
+              {paginatedData.map((item) => (
+                <Card key={item.id} style={[styles.itemCard, selectedIds.includes(item.id) && styles.itemCardSelected]}>
+                  <Card.Content>
+                    <View style={styles.cardHeader}>
+                      <CircleCheckbox
+                        status={selectedIds.includes(item.id) ? 'checked' : 'unchecked'}
+                        onPress={() => toggleSelectOne(item.id)}
+                        style={{ marginRight: 12 }}
                       />
-                      <IconButton icon="chevron-right" size={20} iconColor={colors.slate400} onPress={() => handleViewDetails(item)} />
+                      <Avatar.Text
+                        size={40}
+                        label={item.initials || (item.name ? item.name.substring(0, 2).toUpperCase() : '??')}
+                        style={[styles.avatar, { backgroundColor: colors.slate800 }]}
+                        labelStyle={styles.avatarLabel}
+                      />
+                      <View style={{ flex: 1, marginLeft: 12 }}>
+                        <Text variant="bodyLarge" style={{ fontWeight: 'bold' }}>{item.name || `${item.firstName} ${item.lastName}`}</Text>
+                        <Text variant="bodySmall" style={{ color: colors.slate500 }}>{item.email}</Text>
+                      </View>
+                      <Surface style={[
+                        styles.statusBadge, 
+                        styles.standardBadge
+                      ]} elevation={0}>
+                        <Text variant="labelSmall" style={[
+                          styles.statusBadgeText, 
+                          styles.standardText
+                        ]}>Standard</Text>
+                      </Surface>
                     </View>
-                </Card.Content>
-              </Card>
-            ))}
+                    
+                    <View style={styles.cardDivider} />
+                    
+                    <View style={styles.cardDetails}>
+                      <View style={styles.detailRow}>
+                        <IconButton icon="office-building" size={16} iconColor={colors.slate400} style={{ margin: 0 }} />
+                        <Text variant="bodySmall" style={styles.detailText}>{item.unit || `Room ${item.roomNo}`}</Text>
+                      </View>
+                      <View style={styles.detailRow}>
+                        <IconButton icon="calendar" size={16} iconColor={colors.slate400} style={{ margin: 0 }} />
+                        <Text variant="bodySmall" style={styles.detailText}>Registered: {item.date ? new Date(item.date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '-'}</Text>
+                      </View>
+                      <View style={styles.detailRow}>
+                        <IconButton icon="food-apple" size={16} iconColor={colors.slate400} style={{ margin: 0 }} />
+                        <Text variant="bodySmall" style={[
+                          styles.detailText, 
+                          { color: (item.mealType === 'Veggie' || item.meal_type === 'Veggie') ? colors.emerald600 : colors.rose600, fontWeight: 'bold' }
+                        ]}>{item.mealType || item.meal_type || 'Non-Veggie'}</Text>
+                      </View>
+                      {item.mealTicketExpirationDate && (
+                        <View style={styles.detailRow}>
+                          <IconButton icon="calendar-clock" size={16} iconColor={isExpired(item) ? colors.amber600 : colors.slate400} style={{ margin: 0 }} />
+                          <Text variant="bodySmall" style={[styles.detailText, isExpired(item) && { color: colors.amber600, fontWeight: 'bold' }]}>
+                            Expires: {new Date(item.mealTicketExpirationDate).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+                                      <View style={styles.cardActions}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, gap: 6 }}>
+                          <Switch
+                            value={item.canGenerateMealTicket}
+                            onValueChange={() => handleToggleAllowance(item.id, item.canGenerateMealTicket)}
+                            disabled={togglingId === item.id}
+                            color={colors.primary}
+                          />
+                          <Text variant="labelSmall" style={{ color: item.canGenerateMealTicket ? (isExpired(item) ? colors.amber600 : '#10B981') : colors.slate500, fontWeight: 'bold' }}>
+                            {item.canGenerateMealTicket ? (isExpired(item) ? 'ALLOWED (EXPIRED)' : 'ALLOWED') : 'RESTRICTED'}
+                          </Text>
+                        </View>
+                        <IconButton
+                          icon="calendar-remove"
+                          size={20} 
+                          iconColor={isExpired(item) ? colors.amber600 : colors.slate400} 
+                          onPress={() => {
+                            setExpirationTargetId(item.id);
+                            setExpirationDate(item.mealTicketExpirationDate ? item.mealTicketExpirationDate.split('T')[0] : '');
+                            setExpirationDays('');
+                            setIsExpirationModalVisible(true);
+                          }} 
+                        />
+                        <IconButton icon="chevron-right" size={20} iconColor={colors.slate400} onPress={() => handleViewDetails(item)} />
+                      </View>
+                  </Card.Content>
+                </Card>
+              ))}
+            </View>
+            <View style={{ paddingVertical: 16 }}>
+              <DataTable.Pagination
+                page={page}
+                numberOfPages={Math.ceil(filteredData.length / itemsPerPage)}
+                onPageChange={(p) => setPage(p)}
+                label={`${page * itemsPerPage + 1}-${Math.min((page + 1) * itemsPerPage, filteredData.length)} of ${filteredData.length}`}
+                showFastPaginationControls
+              />
+            </View>
           </View>
         )}
       </View>
@@ -1482,7 +1799,7 @@ export const ActiveRenters = () => {
             </Card.Content>
             <Card.Actions style={styles.modalActions}>
               <Button onPress={() => setIsExpirationModalVisible(false)} mode="text" textColor={colors.slate500}>Cancel</Button>
-              <Button onPress={handleExpirationSubmit} mode="contained" buttonColor={colors.amber600}>Save</Button>
+              <Button onPress={handleExpirationSubmit} mode="contained" buttonColor={colors.amber600} loading={isSavingExpiration} disabled={isSavingExpiration}>Save</Button>
             </Card.Actions>
           </Card>
         </Modal>
@@ -1708,9 +2025,11 @@ export const AuditLogs = () => {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [viewType, setViewType] = useState('table');
+  const [isExporting, setIsExporting] = useState(false);
   const theme = useTheme();
 
   const { userRole, isAuthenticated } = usePermissions();
+  const { showSnackbar } = useSnackbar();
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -1737,9 +2056,10 @@ export const AuditLogs = () => {
 
   const handleDownloadReport = async () => {
     if (data.length === 0) {
-      Alert.alert('No Data', 'There are no audit logs to export.');
+      showSnackbar('There are no audit logs to export.', 'info');
       return;
     }
+    setIsExporting(true);
 
     const reportId = `AL-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
     const generatedAt = new Date().toLocaleString();
@@ -1769,7 +2089,7 @@ export const AuditLogs = () => {
         </head>
         <body>
           <div class="header">
-            <div class="branding"><h1>SecureAccess™</h1><p style="margin:0;font-size:12px;color:#64748b;">Enterprise Security Audit</p></div>
+            <div class="branding"><h1>ServeQueue</h1><p style="margin:0;font-size:12px;color:#64748b;">Enterprise Security Audit</p></div>
             <div class="metadata">REPORT_ID: ${reportId}<br>GENERATED: ${generatedAt}</div>
           </div>
           <div class="classification">OFFICIAL SYSTEM AUDIT TRAIL</div>
@@ -1820,15 +2140,18 @@ export const AuditLogs = () => {
       } else {
         await Print.printAsync({ html });
       }
+      showSnackbar('Audit report generated.', 'success');
     } catch (error) {
       console.error('Error exporting audit log:', error);
-      Alert.alert('Error', 'Failed to generate PDF report');
+      showSnackbar('Failed to generate PDF report.', 'error');
+    } finally {
+      setIsExporting(false);
     }
   };
-  
+
   const filteredData = useMemo(() => {
-    return data.filter(item => 
-      (item.admin && item.admin.toLowerCase().includes(search.toLowerCase())) || 
+    return data.filter(item =>
+      (item.admin && item.admin.toLowerCase().includes(search.toLowerCase())) ||
       (item.details && item.details.toLowerCase().includes(search.toLowerCase()))
     );
   }, [search, data]);
@@ -1844,7 +2167,7 @@ export const AuditLogs = () => {
           <Button mode="outlined" icon="refresh" onPress={fetchAuditLogs} loading={loading} disabled={loading} style={{ borderColor: colors.slate200 }}>
             Refresh
           </Button>
-          <Button mode="contained" icon="database-download" onPress={handleDownloadReport} style={styles.addButton}>
+          <Button mode="contained" icon="database-download" onPress={handleDownloadReport} loading={isExporting} disabled={isExporting} style={styles.addButton}>
             Download Report
           </Button>
         </View>
@@ -2081,46 +2404,332 @@ export const Permissions = () => {
   );
 };
 
+// --- Meal-window time helpers (12h display, tolerant of 24h input) ---
+const parseTimeToMinutes = (token) => {
+  if (!token) return null;
+  const m = String(token).trim().match(/^(\d{1,2}):(\d{2})\s*([AaPp][Mm])?$/);
+  if (!m) return null;
+  let h = parseInt(m[1], 10);
+  const min = parseInt(m[2], 10);
+  if (min > 59) return null;
+  const ap = m[3] ? m[3].toUpperCase() : null;
+  if (ap) {
+    if (h < 1 || h > 12) return null;
+    h = ap === 'AM' ? (h === 12 ? 0 : h) : (h === 12 ? 12 : h + 12);
+  } else if (h > 23) {
+    return null;
+  }
+  return h * 60 + min;
+};
+
+const minutesTo12h = (mins) => {
+  const h24 = Math.floor(mins / 60) % 24;
+  const m = mins % 60;
+  const ap = h24 < 12 ? 'AM' : 'PM';
+  let h = h24 % 12;
+  if (h === 0) h = 12;
+  return `${h}:${String(m).padStart(2, '0')} ${ap}`;
+};
+
+// Normalize "05:00-10:00" or "5:00 AM-10:00 AM" -> "5:00 AM-10:00 AM"; null if invalid.
+const normalizeRangeTo12h = (value) => {
+  if (!value) return null;
+  const parts = String(value).split('-');
+  if (parts.length !== 2) return null;
+  const a = parseTimeToMinutes(parts[0]);
+  const b = parseTimeToMinutes(parts[1]);
+  if (a == null || b == null) return null;
+  return `${minutesTo12h(a)}-${minutesTo12h(b)}`;
+};
+
 export const Configuration = () => {
   const theme = useTheme();
-  
-  // Network Configuration State
+
+  const { userRole } = usePermissions();
+  const { showSnackbar } = useSnackbar();
   const [backendUrl, setBackendUrl] = useState('');
+  const [bridgeUrl, setBridgeUrl] = useState('');
   const [isTesting, setIsTesting] = useState(false);
+  const [isBridgeTesting, setIsBridgeTesting] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [hardwarePrinters, setHardwarePrinters] = useState([]);
+  const [selectedPrinter, setSelectedPrinter] = useState('');
+  const [isScanningPrinters, setIsScanningPrinters] = useState(false);
+  const [printerMenuVisible, setPrinterMenuVisible] = useState(false);
+  const [resetDialogVisible, setResetDialogVisible] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
+  const [whatsappBiometricMessage, setWhatsappBiometricMessage] = useState('');
+  const [whatsappStudentMessage, setWhatsappStudentMessage] = useState('');
+  const [wassengerApiKey, setWassengerApiKey] = useState('');
+  const [notifyParentEnabled, setNotifyParentEnabled] = useState(true);
+  const [notifyStudentEnabled, setNotifyStudentEnabled] = useState(true);
+  const [isSavingWhatsapp, setIsSavingWhatsapp] = useState(false);
+  const [isFetchingSettings, setIsFetchingSettings] = useState(false);
+  // Meal service settings
+  const [mealRestrictionEnabled, setMealRestrictionEnabled] = useState(false);
+  const [mealWindowBreakfast, setMealWindowBreakfast] = useState('5:00 AM-10:00 AM');
+  const [mealWindowLunch, setMealWindowLunch] = useState('11:00 AM-2:00 PM');
+  const [mealWindowDinner, setMealWindowDinner] = useState('5:00 PM-9:00 PM');
+  const [isSavingMeal, setIsSavingMeal] = useState(false);
+  const fileInputRef = useRef(null);
 
   useEffect(() => {
     if (Platform.OS === 'web') {
       const savedUrl = localStorage.getItem('BACKEND_URL');
-      setBackendUrl(savedUrl || 'http://localhost:5000/api');
+      setBackendUrl(savedUrl || 'http://localhost:5005/api');
+      const savedBridge = localStorage.getItem('BRIDGE_URL');
+      setBridgeUrl(savedBridge || 'http://localhost:5003');
+      const savedPrinter = localStorage.getItem('SELECTED_PRINTER');
+      if (savedPrinter) setSelectedPrinter(savedPrinter);
     }
+    fetchSystemSettings();
   }, []);
+
+  const fetchSystemSettings = async () => {
+    try {
+      setIsFetchingSettings(true);
+      const response = await axios.get(`${API_BASE_URL}/system/settings`);
+      if (response.data) {
+        const s = response.data;
+        if (s.whatsapp_biometric_message) setWhatsappBiometricMessage(s.whatsapp_biometric_message);
+        if (s.whatsapp_student_message) setWhatsappStudentMessage(s.whatsapp_student_message);
+        if (s.wassenger_api_key) setWassengerApiKey(s.wassenger_api_key);
+        // Default ON unless explicitly 'false'
+        setNotifyParentEnabled(s.notify_parent_enabled !== 'false');
+        setNotifyStudentEnabled(s.notify_student_enabled !== 'false');
+        setMealRestrictionEnabled(s.meal_restriction_enabled === 'true');
+        if (s.meal_window_breakfast) setMealWindowBreakfast(normalizeRangeTo12h(s.meal_window_breakfast) || s.meal_window_breakfast);
+        if (s.meal_window_lunch) setMealWindowLunch(normalizeRangeTo12h(s.meal_window_lunch) || s.meal_window_lunch);
+        if (s.meal_window_dinner) setMealWindowDinner(normalizeRangeTo12h(s.meal_window_dinner) || s.meal_window_dinner);
+      }
+    } catch (error) {
+      console.error('Failed to fetch system settings:', error);
+    } finally {
+      setIsFetchingSettings(false);
+    }
+  };
+
+  const handleSaveWhatsappMessage = async () => {
+    try {
+      setIsSavingWhatsapp(true);
+      const updates = [
+        { key: 'whatsapp_biometric_message', value: whatsappBiometricMessage },
+        { key: 'whatsapp_student_message', value: whatsappStudentMessage },
+        { key: 'wassenger_api_key', value: wassengerApiKey },
+        { key: 'notify_parent_enabled', value: notifyParentEnabled ? 'true' : 'false' },
+        { key: 'notify_student_enabled', value: notifyStudentEnabled ? 'true' : 'false' }
+      ];
+      for (const u of updates) {
+        await axios.post(`${API_BASE_URL}/system/settings`, u);
+      }
+      showSnackbar('WhatsApp notification settings saved.', 'success');
+    } catch (error) {
+      console.error('Failed to save WhatsApp message:', error);
+      showSnackbar('Could not update WhatsApp notification settings.', 'error');
+    } finally {
+      setIsSavingWhatsapp(false);
+    }
+  };
+
+  const handleSaveMealSettings = async () => {
+    // Validate + normalize to 12h "h:MM AM/PM-h:MM AM/PM"
+    const bf = normalizeRangeTo12h(mealWindowBreakfast);
+    const ln = normalizeRangeTo12h(mealWindowLunch);
+    const dn = normalizeRangeTo12h(mealWindowDinner);
+    if (!bf || !ln || !dn) {
+      showSnackbar('Use 12h format like "5:00 AM-10:00 AM".', 'error');
+      return;
+    }
+    // Reflect the normalized values back into the inputs
+    setMealWindowBreakfast(bf);
+    setMealWindowLunch(ln);
+    setMealWindowDinner(dn);
+    try {
+      setIsSavingMeal(true);
+      const updates = [
+        { key: 'meal_restriction_enabled', value: mealRestrictionEnabled ? 'true' : 'false' },
+        { key: 'meal_window_breakfast', value: bf },
+        { key: 'meal_window_lunch', value: ln },
+        { key: 'meal_window_dinner', value: dn }
+      ];
+      for (const u of updates) {
+        await axios.post(`${API_BASE_URL}/system/settings`, u);
+      }
+      showSnackbar('Meal service settings saved.', 'success');
+    } catch (error) {
+      console.error('Failed to save meal settings:', error);
+      showSnackbar('Could not update meal service settings.', 'error');
+    } finally {
+      setIsSavingMeal(false);
+    }
+  };
 
   const handleSaveConfig = () => {
     if (Platform.OS === 'web') {
       localStorage.setItem('BACKEND_URL', backendUrl);
-      Alert.alert(
-        'Configuration Saved', 
-        'Network settings updated successfully. Please restart the application for changes to take effect throughout all windows.',
-        [{ text: 'OK' }]
-      );
+      localStorage.setItem('BRIDGE_URL', bridgeUrl);
+      showSnackbar('Network settings saved. Restart the app to apply everywhere.', 'success');
+    }
+  };
+
+  const handleTestBridgeConnection = async () => {
+    setIsBridgeTesting(true);
+    try {
+      const response = await axios.get(`${bridgeUrl}/health`, { timeout: 5000 });
+      if (response.status === 200) {
+        const { HardwareReady, ReaderCount } = response.data;
+        showSnackbar(`Bridge connected. Hardware: ${HardwareReady ? 'Ready' : 'Not ready'}, Readers: ${ReaderCount ?? 'N/A'}.`, 'success');
+      } else {
+        throw new Error(`Bridge returned status: ${response.status}`);
+      }
+    } catch (error) {
+      showSnackbar(`Bridge unreachable at ${bridgeUrl}.`, 'error');
+    } finally {
+      setIsBridgeTesting(false);
     }
   };
 
   const handleTestConnection = async () => {
     setIsTesting(true);
     try {
-      // Try to hit the root /health endpoint
       const rootUrl = backendUrl.split('/api')[0];
       const response = await axios.get(`${rootUrl}/health`, { timeout: 5000 });
       if (response.status === 200) {
-        Alert.alert('Connection Success', 'Successfully connected to the backend server.');
+        showSnackbar('Connected to the backend server.', 'success');
       } else {
         throw new Error(`Server returned status: ${response.status}`);
       }
     } catch (error) {
-      Alert.alert('Connection Failed', `Could not reach the backend. ${error.message}`);
+      showSnackbar(`Could not reach the backend. ${error.message}`, 'error');
     } finally {
       setIsTesting(false);
+    }
+  };
+
+  const handleSaveHardware = () => {
+    if (Platform.OS === 'web') {
+      localStorage.setItem('SELECTED_PRINTER', selectedPrinter);
+      showSnackbar(`Printer saved: ${selectedPrinter || 'None (Default)'}.`, 'success');
+    }
+  };
+
+  const handleScanPrinters = async () => {
+    setIsScanningPrinters(true);
+    try {
+      const response = await axios.get(`${bridgeUrl}/status`, { timeout: 3000 });
+      let printersData = response.data?.printers || response.data?.Printers;
+      if (printersData) {
+        let printers = printersData;
+        if (typeof printers === 'string') {
+          printers = printers.split(',').map(p => p.trim()).filter(p => p && p !== 'UnknownPrinter');
+        }
+        if (Array.isArray(printers)) {
+          setHardwarePrinters(printers);
+          if (printers.length > 0 && !selectedPrinter) {
+             setSelectedPrinter(printers[0]);
+          }
+          showSnackbar(`Scan complete. Found ${printers.length} printer(s).`, 'success');
+        }
+      } else {
+        showSnackbar('Scan complete. No printers found.', 'info');
+      }
+    } catch (error) {
+      showSnackbar(`Could not reach the Biometric Bridge at ${bridgeUrl}.`, 'error');
+    } finally {
+      setIsScanningPrinters(false);
+    }
+  };
+
+  const handleFileSelect = (event) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      uploadFile(file);
+    }
+  };
+
+  const uploadFile = async (file) => {
+    setUploading(true);
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const response = await axios.post(`${API_BASE_URL}/registrations/bulk`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+          'x-user-role': userRole
+        }
+      });
+      
+      const successCount = response.data.success?.length || 0;
+      const errorCount = response.data.errors?.length || 0;
+
+      showSnackbar(`Import done: ${successCount} imported, ${errorCount} skipped.`, errorCount > 0 ? 'info' : 'success');
+    } catch (error) {
+      console.error('Upload failed:', error);
+      showSnackbar('Upload failed. Check the Excel file format.', 'error');
+    } finally {
+      setUploading(false);
+      // Reset input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const triggerFilePicker = () => {
+    if (Platform.OS === 'web') {
+      fileInputRef.current?.click();
+    } else {
+      Alert.alert('Not Supported', 'Bulk upload is currently only supported on the Web/Desktop version.');
+    }
+  };
+
+  const handleDownloadTemplate = () => {
+    if (Platform.OS === 'web') {
+      const headers = ['First Name', 'Last Name', 'Email', 'Student Phone', 'Parent Phone', 'Room No', 'Floor No', 'IMD', 'Meal Type'];
+      const sampleRow = ['John', 'Doe', 'john.doe@example.com', '09123456789', '09987654321', '101', '1', 'IMD-12345', 'Non-Veggie'];
+      const csvContent = [headers.join(','), sampleRow.join(',')].join('\n');
+      
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.setAttribute('href', url);
+      link.setAttribute('download', 'Renter_Bulk_Upload_Template.csv');
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } else {
+      Alert.alert('Not Supported', 'Template download is currently only supported on the Web/Desktop version.');
+    }
+  };
+
+  const handleResetData = async () => {
+    setIsResetting(true);
+    try {
+      await axios.post(`${API_BASE_URL}/system/reset`);
+      setResetDialogVisible(false);
+      showSnackbar('System reset. All transaction and registration data cleared.', 'success');
+    } catch (error) {
+      showSnackbar(`Reset failed: ${error.message}`, 'error');
+    } finally {
+      setIsResetting(false);
+    }
+  };
+
+  const handleBackupSQL = () => {
+    if (Platform.OS === 'web') {
+      window.open(`${API_BASE_URL}/system/backup/sql`, '_blank');
+    } else {
+      Alert.alert('Not Supported', 'SQL backup is currently only supported on the Web/Desktop version.');
+    }
+  };
+
+  const handleBackupExcel = () => {
+    if (Platform.OS === 'web') {
+      window.open(`${API_BASE_URL}/system/backup/excel`, '_blank');
+    } else {
+      Alert.alert('Not Supported', 'Excel backup is currently only supported on the Web/Desktop version.');
     }
   };
 
@@ -2136,56 +2745,488 @@ export const Configuration = () => {
         </Button>
       </View>
 
-      {/* Network Configuration Section */}
-      <Card style={[styles.tableCard, { marginBottom: 24 }]}>
-        <Card.Title 
-          title="Network Configuration" 
-          subtitle="Configure backend connectivity for Terminal and Admin nodes"
-          left={(props) => <Avatar.Icon {...props} icon="lan" style={{ backgroundColor: colors.indigo50 }} color={colors.primary} />}
-        />
-        <Card.Content style={{ paddingTop: 8 }}>
-          <View style={{ gap: 16 }}>
-            <View style={styles.inputGroup}>
-              <Text variant="labelMedium" style={styles.inputLabel}>Backend API Base URL</Text>
-              <TextInput
-                value={backendUrl}
-                onChangeText={setBackendUrl}
-                mode="outlined"
-                placeholder="http://localhost:5000/api"
-                outlineStyle={{ borderRadius: 12 }}
-                left={<TextInput.Icon icon="server-network" color={colors.slate400} />}
-                style={{ backgroundColor: colors.white }}
-              />
-              <Text variant="bodySmall" style={{ color: colors.slate500, marginTop: 4 }}>
-                This address will be used by both the Admin Panel and the Biometric Terminal.
-              </Text>
-            </View>
-            
-            <View style={{ flexDirection: 'row', gap: 12, marginTop: 8 }}>
+      <ScrollView showsVerticalScrollIndicator={false}>
+        {/* Network Configuration Section */}
+        <Card style={[styles.tableCard, { marginBottom: 24 }]}>
+          <Card.Title 
+            title="Network Configuration" 
+            subtitle="Configure backend and biometric bridge connectivity for all terminal nodes"
+            left={(props) => <Avatar.Icon {...props} icon="lan" style={{ backgroundColor: colors.indigo50 }} color={colors.primary} />}
+          />
+          <Card.Content style={{ paddingTop: 8 }}>
+            <View style={{ gap: 20 }}>
+
+              {/* Backend Server URL */}
+              <View style={styles.inputGroup}>
+                <Text variant="labelMedium" style={styles.inputLabel}>Backend Server URL</Text>
+                <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
+                  <TextInput
+                    value={backendUrl}
+                    onChangeText={setBackendUrl}
+                    mode="outlined"
+                    placeholder="http://192.168.1.100:5005/api"
+                    outlineStyle={{ borderRadius: 12 }}
+                    left={<TextInput.Icon icon="server-network" color={colors.slate400} />}
+                    style={{ backgroundColor: colors.white, flex: 1 }}
+                  />
+                  <Button
+                    mode="outlined"
+                    icon="connection"
+                    onPress={handleTestConnection}
+                    loading={isTesting}
+                    disabled={isTesting}
+                    style={{ borderRadius: 12, borderColor: colors.slate200 }}
+                  >
+                    Test
+                  </Button>
+                </View>
+                <Text variant="bodySmall" style={{ color: colors.slate500, marginTop: 4 }}>
+                  Central server IP for all terminals. For LAN deployments, use the main server's IP (e.g. http://192.168.1.100:5005/api).
+                </Text>
+              </View>
+
+              <Divider />
+
+              {/* Biometric Bridge URL */}
+              <View style={styles.inputGroup}>
+                <Text variant="labelMedium" style={styles.inputLabel}>Biometric Bridge URL (Local to this Terminal)</Text>
+                <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
+                  <TextInput
+                    value={bridgeUrl}
+                    onChangeText={setBridgeUrl}
+                    mode="outlined"
+                    placeholder="http://localhost:5003"
+                    outlineStyle={{ borderRadius: 12 }}
+                    left={<TextInput.Icon icon="usb" color={colors.slate400} />}
+                    style={{ backgroundColor: colors.white, flex: 1 }}
+                  />
+                  <Button
+                    mode="outlined"
+                    icon="fingerprint"
+                    onPress={handleTestBridgeConnection}
+                    loading={isBridgeTesting}
+                    disabled={isBridgeTesting}
+                    style={{ borderRadius: 12, borderColor: colors.slate200 }}
+                  >
+                    Test
+                  </Button>
+                </View>
+                <Text variant="bodySmall" style={{ color: colors.slate500, marginTop: 4 }}>
+                  The .NET Biometric Bridge running locally on this terminal. Should always point to localhost unless advanced configuration is needed.
+                </Text>
+              </View>
+
+              <View style={{ backgroundColor: colors.indigo50, borderRadius: 12, padding: 12 }}>
+                <Text variant="labelSmall" style={{ color: colors.primary, fontWeight: '800', marginBottom: 4 }}>DISTRIBUTED TERMINAL SETUP</Text>
+                <Text variant="bodySmall" style={{ color: colors.slate600 }}>
+                  For multi-terminal deployments: set Backend Server URL to the central server IP on each terminal node, while keeping the Bridge URL as localhost. The biometric hardware is local; all data is centralized.
+                </Text>
+              </View>
+
               <Button 
                 mode="contained" 
                 icon="content-save" 
                 onPress={handleSaveConfig}
-                style={[styles.addButton, { flex: 1 }]}
+                style={[styles.addButton]}
               >
-                Save & Apply Settings
-              </Button>
-              <Button 
-                mode="outlined" 
-                icon="connection" 
-                onPress={handleTestConnection}
-                loading={isTesting}
-                disabled={isTesting}
-                style={{ borderRadius: 12, flex: 0.8, borderColor: colors.slate200 }}
-              >
-                Test Connection
+                Save All Network Settings
               </Button>
             </View>
-          </View>
-        </Card.Content>
-      </Card>
+          </Card.Content>
+        </Card>
 
+        {/* Hardware Configuration Section */}
+        <Card style={[styles.tableCard, { marginBottom: 24 }]}>
+          <Card.Title 
+            title="Hardware Configuration" 
+            subtitle="Configure connected peripherals like POS Printers"
+            left={(props) => <Avatar.Icon {...props} icon="printer-pos" style={{ backgroundColor: colors.slate50 }} color={colors.slate700} />}
+          />
+          <Card.Content style={{ paddingTop: 8 }}>
+            <View style={{ gap: 16 }}>
+              <View style={styles.inputGroup}>
+                <Text variant="labelMedium" style={styles.inputLabel}>Selected Meal Ticket Printer</Text>
+                
+                <Menu
+                  visible={printerMenuVisible}
+                  onDismiss={() => setPrinterMenuVisible(false)}
+                  anchor={
+                    <Button 
+                      mode="outlined" 
+                      onPress={() => setPrinterMenuVisible(true)}
+                      style={{ borderRadius: 12, borderColor: colors.slate200, justifyContent: 'flex-start' }}
+                      icon="printer"
+                      contentStyle={{ flexDirection: 'row-reverse', justifyContent: 'space-between', paddingVertical: 4 }}
+                      labelStyle={{ flex: 1, textAlign: 'left', color: selectedPrinter ? colors.slate800 : colors.slate400 }}
+                    >
+                      {selectedPrinter || 'Select a printer'}
+                    </Button>
+                  }
+                >
+                  <Menu.Item onPress={() => { setSelectedPrinter(''); setPrinterMenuVisible(false); }} title="None (Default)" />
+                  {hardwarePrinters.map((p, idx) => (
+                    <Menu.Item key={idx} onPress={() => { setSelectedPrinter(p); setPrinterMenuVisible(false); }} title={p} />
+                  ))}
+                </Menu>
 
+                <Text variant="bodySmall" style={{ color: colors.slate500, marginTop: 4 }}>
+                  Ensure the printer is connected and the Biometric Bridge is running.
+                </Text>
+              </View>
+              
+              <View style={{ flexDirection: 'row', gap: 12, marginTop: 8 }}>
+                <Button 
+                  mode="contained" 
+                  icon="content-save" 
+                  onPress={handleSaveHardware}
+                  style={[styles.addButton, { flex: 1 }]}
+                  buttonColor={colors.slate700}
+                >
+                  Save Hardware Settings
+                </Button>
+                <Button 
+                  mode="outlined" 
+                  icon="line-scan" 
+                  onPress={handleScanPrinters}
+                  loading={isScanningPrinters}
+                  disabled={isScanningPrinters}
+                  style={{ borderRadius: 12, flex: 0.8, borderColor: colors.slate200 }}
+                  textColor={colors.slate700}
+                >
+                  Scan Printers
+                </Button>
+              </View>
+            </View>
+          </Card.Content>
+        </Card>
+ 
+        {/* WhatsApp Notification Configuration */}
+        <Card style={[styles.tableCard, { marginBottom: 24 }]}>
+          <Card.Title
+            title="WhatsApp Notifications"
+            subtitle="Customize automated messages sent to parents and students"
+            left={(props) => <Avatar.Icon {...props} icon="whatsapp" style={{ backgroundColor: colors.emerald50 }} color={colors.emerald600} />}
+          />
+          <Card.Content style={{ paddingTop: 8 }}>
+            <View style={{ gap: 16 }}>
+              <View style={styles.inputGroup}>
+                <Text variant="labelMedium" style={styles.inputLabel}>Biometric Scan Message Template</Text>
+                <TextInput
+                  value={whatsappBiometricMessage}
+                  onChangeText={setWhatsappBiometricMessage}
+                  mode="outlined"
+                  multiline
+                  numberOfLines={4}
+                  placeholder="Enter message template..."
+                  outlineStyle={{ borderRadius: 12 }}
+                  style={{ backgroundColor: colors.white }}
+                />
+                <View style={{ backgroundColor: colors.slate50, borderRadius: 12, padding: 12, marginTop: 12 }}>
+                  <Text variant="labelSmall" style={{ color: colors.slate700, fontWeight: '800', marginBottom: 4 }}>AVAILABLE PLACEHOLDERS</Text>
+                  <Text variant="bodySmall" style={{ color: colors.slate600 }}>
+                    <Text style={{ fontWeight: 'bold' }}>{'{name}'}</Text> - Renter's Full Name{'\n'}
+                    <Text style={{ fontWeight: 'bold' }}>{'{mealType}'}</Text> - Assigned Meal (e.g. Veggie){'\n'}
+                    <Text style={{ fontWeight: 'bold' }}>{'{time}'}</Text> - Time of biometric scan
+                  </Text>
+                </View>
+              </View>
+
+              <Divider />
+
+              {/* Recipient toggles */}
+              <View style={styles.inputGroup}>
+                <Text variant="labelMedium" style={styles.inputLabel}>Recipients</Text>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 6 }}>
+                  <View style={{ flex: 1 }}>
+                    <Text variant="bodyMedium" style={{ fontWeight: '700', color: colors.slate700 }}>Notify Parent</Text>
+                    <Text variant="bodySmall" style={{ color: colors.slate500 }}>Send to the registered parent number.</Text>
+                  </View>
+                  <Switch value={notifyParentEnabled} onValueChange={setNotifyParentEnabled} color={colors.emerald600} />
+                </View>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 6 }}>
+                  <View style={{ flex: 1 }}>
+                    <Text variant="bodyMedium" style={{ fontWeight: '700', color: colors.slate700 }}>Notify Student</Text>
+                    <Text variant="bodySmall" style={{ color: colors.slate500 }}>Send to the student's own number.</Text>
+                  </View>
+                  <Switch value={notifyStudentEnabled} onValueChange={setNotifyStudentEnabled} color={colors.emerald600} />
+                </View>
+              </View>
+
+              <Divider />
+
+              <View style={styles.inputGroup}>
+                <Text variant="labelMedium" style={styles.inputLabel}>Student Message Template</Text>
+                <TextInput
+                  value={whatsappStudentMessage}
+                  onChangeText={setWhatsappStudentMessage}
+                  mode="outlined"
+                  multiline
+                  numberOfLines={4}
+                  placeholder="Message sent to the student..."
+                  outlineStyle={{ borderRadius: 12 }}
+                  style={{ backgroundColor: colors.white }}
+                />
+                <Text variant="bodySmall" style={{ color: colors.slate500, marginTop: 4 }}>
+                  Uses the same placeholders: {'{name}'}, {'{mealType}'}, {'{time}'}.
+                </Text>
+              </View>
+
+              <Divider />
+
+              <View style={styles.inputGroup}>
+                <Text variant="labelMedium" style={styles.inputLabel}>Wassenger API Key</Text>
+                <TextInput
+                  value={wassengerApiKey}
+                  onChangeText={setWassengerApiKey}
+                  mode="outlined"
+                  placeholder="Enter Wassenger API Key..."
+                  outlineStyle={{ borderRadius: 12 }}
+                  secureTextEntry
+                  left={<TextInput.Icon icon="key" color={colors.slate400} />}
+                  style={{ backgroundColor: colors.white }}
+                />
+                <Text variant="bodySmall" style={{ color: colors.slate500, marginTop: 4 }}>
+                  The API key from your Wassenger dashboard. Keep this private.
+                </Text>
+              </View>
+
+              <Button 
+                mode="contained" 
+                icon="message-check" 
+                onPress={handleSaveWhatsappMessage}
+                loading={isSavingWhatsapp}
+                disabled={isSavingWhatsapp || isFetchingSettings}
+                style={[styles.addButton, { backgroundColor: colors.emerald600 }]}
+              >
+                Save Notification Settings
+              </Button>
+            </View>
+          </Card.Content>
+        </Card>
+
+        {/* Meal Service Configuration */}
+        <Card style={[styles.tableCard, { marginBottom: 24 }]}>
+          <Card.Title
+            title="Meal Service Rules"
+            subtitle="Control meal-ticket limits and meal time windows"
+            left={(props) => <Avatar.Icon {...props} icon="food-fork-drink" style={{ backgroundColor: 'rgba(217, 119, 6, 0.1)' }} color={colors.amber600} />}
+          />
+          <Card.Content style={{ paddingTop: 8 }}>
+            <View style={{ gap: 16 }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <View style={{ flex: 1, paddingRight: 12 }}>
+                  <Text variant="bodyMedium" style={{ fontWeight: '700', color: colors.slate700 }}>Limit 1 meal per student</Text>
+                  <Text variant="bodySmall" style={{ color: colors.slate500 }}>
+                    When on, each student may claim only one Breakfast, one Lunch, and one Dinner per day.
+                  </Text>
+                </View>
+                <Switch value={mealRestrictionEnabled} onValueChange={setMealRestrictionEnabled} color={colors.amber600} />
+              </View>
+
+              <Divider />
+
+              <View style={styles.inputGroup}>
+                <Text variant="labelMedium" style={styles.inputLabel}>Meal Time Windows (12h, e.g. 5:00 AM-10:00 AM)</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 8 }}>
+                  <Text variant="bodyMedium" style={{ width: 80, color: colors.slate600, fontWeight: '700' }}>Breakfast</Text>
+                  <TextInput
+                    value={mealWindowBreakfast}
+                    onChangeText={setMealWindowBreakfast}
+                    mode="outlined"
+                    placeholder="5:00 AM-10:00 AM"
+                    outlineStyle={{ borderRadius: 12 }}
+                    style={{ backgroundColor: colors.white, flex: 1 }}
+                    dense
+                  />
+                </View>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 8 }}>
+                  <Text variant="bodyMedium" style={{ width: 80, color: colors.slate600, fontWeight: '700' }}>Lunch</Text>
+                  <TextInput
+                    value={mealWindowLunch}
+                    onChangeText={setMealWindowLunch}
+                    mode="outlined"
+                    placeholder="11:00 AM-2:00 PM"
+                    outlineStyle={{ borderRadius: 12 }}
+                    style={{ backgroundColor: colors.white, flex: 1 }}
+                    dense
+                  />
+                </View>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 8 }}>
+                  <Text variant="bodyMedium" style={{ width: 80, color: colors.slate600, fontWeight: '700' }}>Dinner</Text>
+                  <TextInput
+                    value={mealWindowDinner}
+                    onChangeText={setMealWindowDinner}
+                    mode="outlined"
+                    placeholder="5:00 PM-9:00 PM"
+                    outlineStyle={{ borderRadius: 12 }}
+                    style={{ backgroundColor: colors.white, flex: 1 }}
+                    dense
+                  />
+                </View>
+                <Text variant="bodySmall" style={{ color: colors.slate500, marginTop: 8 }}>
+                  These windows define which meal a scan counts toward, used by both the 1-meal limit and the meal reports.
+                </Text>
+              </View>
+
+              <Button
+                mode="contained"
+                icon="content-save-check"
+                onPress={handleSaveMealSettings}
+                loading={isSavingMeal}
+                disabled={isSavingMeal || isFetchingSettings}
+                style={[styles.addButton, { backgroundColor: colors.amber600 }]}
+              >
+                Save Meal Settings
+              </Button>
+            </View>
+          </Card.Content>
+        </Card>
+
+        {/* Bulk Data Upload Section */}
+        <Card style={[styles.tableCard, { marginBottom: 24 }]}>
+          <Card.Title 
+            title="Bulk Data Management" 
+            subtitle="Import large volumes of renter data using Excel files"
+            left={(props) => <Avatar.Icon {...props} icon="file-excel" style={{ backgroundColor: "rgba(16, 185, 129, 0.08)" }} color={colors.emerald600} />}
+          />
+          <Card.Content style={{ paddingTop: 8 }}>
+            <View style={{ gap: 20 }}>
+              <View style={styles.placeholder}>
+                <Avatar.Icon size={48} icon="upload-outline" style={{ backgroundColor: 'transparent' }} color={colors.slate300} />
+                <Text variant="bodyMedium" style={{ color: colors.slate600, fontWeight: 'bold', marginTop: 12 }}>
+                  Excel Data Import (Registrations)
+                </Text>
+                <Text variant="bodySmall" style={{ color: colors.slate400, textAlign: 'center', maxWidth: 400, marginTop: 4 }}>
+                  Upload a .xlsx or .xls file. Headers should include: firstName, lastName, email, roomNo, floorNo, imd, mealType.
+                </Text>
+                
+                {Platform.OS === 'web' && (
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    style={{ display: 'none' }}
+                    accept=".xlsx, .xls"
+                    onChange={handleFileSelect}
+                  />
+                )}
+
+                <View style={{ flexDirection: 'row', gap: 12, marginTop: 20, justifyContent: 'center' }}>
+                  <Button 
+                    mode="contained" 
+                    icon="file-upload" 
+                    onPress={triggerFilePicker}
+                    loading={uploading}
+                    disabled={uploading}
+                    style={{ borderRadius: 12, paddingHorizontal: 16 }}
+                    buttonColor={colors.emerald600}
+                  >
+                    {uploading ? 'Processing File...' : 'Select Excel File'}
+                  </Button>
+                  
+                  <Button 
+                    mode="outlined" 
+                    icon="download" 
+                    onPress={handleDownloadTemplate}
+                    style={{ borderRadius: 12, paddingHorizontal: 16, borderColor: colors.emerald600 }}
+                    textColor={colors.emerald600}
+                  >
+                    Download Template
+                  </Button>
+                </View>
+              </View>
+
+              <View style={{ backgroundColor: colors.slate50, padding: 16, borderRadius: 12, borderWidth: 1, borderStyle: 'dashed', borderColor: colors.slate200 }}>
+                <Text variant="labelSmall" style={{ color: colors.slate500, fontWeight: 'bold', textTransform: 'uppercase', marginBottom: 8 }}>
+                  Import Guidelines
+                </Text>
+                <View style={{ gap: 4 }}>
+                  <Text variant="bodySmall" style={{ color: colors.slate600 }}>• First Name, Last Name, and Email are mandatory fields.</Text>
+                  <Text variant="bodySmall" style={{ color: colors.slate600 }}>• Room No and Floor No will be used for accommodation details.</Text>
+                  <Text variant="bodySmall" style={{ color: colors.slate600 }}>• Meal Type defaults to "Non-Veggie" if not specified.</Text>
+                  <Text variant="bodySmall" style={{ color: colors.slate600 }}>• All imported records will be automatically marked as "Approved".</Text>
+                </View>
+              </View>
+            </View>
+          </Card.Content>
+        </Card>
+
+        {/* Data Maintenance Section */}
+        <Card style={[styles.tableCard, { marginBottom: 24 }]}>
+          <Card.Title 
+            title="Data Maintenance" 
+            subtitle="Manage database backups and system reset operations"
+            left={(props) => <Avatar.Icon {...props} icon="database-cog" style={{ backgroundColor: "rgba(244, 63, 94, 0.08)" }} color={colors.rose600} />}
+          />
+          <Card.Content style={{ paddingTop: 8 }}>
+            <View style={{ gap: 16 }}>
+              <View style={{ flexDirection: 'row', gap: 12 }}>
+                <Button 
+                  mode="outlined" 
+                  icon="database-export" 
+                  onPress={handleBackupSQL}
+                  style={{ flex: 1, borderRadius: 12, borderColor: colors.slate200 }}
+                  textColor={colors.slate700}
+                >
+                  Backup to SQL
+                </Button>
+                <Button 
+                  mode="outlined" 
+                  icon="file-excel-outline" 
+                  onPress={handleBackupExcel}
+                  style={{ flex: 1, borderRadius: 12, borderColor: colors.slate200 }}
+                  textColor={colors.emerald600}
+                >
+                  Backup to Excel
+                </Button>
+              </View>
+
+              <Divider />
+
+              <View style={{ backgroundColor: "rgba(244, 63, 94, 0.05)", padding: 16, borderRadius: 12, borderWidth: 1, borderColor: "rgba(244, 63, 94, 0.1)" }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                  <IconButton icon="alert-circle" iconColor={colors.rose600} size={20} style={{ margin: 0 }} />
+                  <Text variant="labelMedium" style={{ color: colors.rose600, fontWeight: '800', marginLeft: 4 }}>DANGER ZONE</Text>
+                </View>
+                <Text variant="bodySmall" style={{ color: colors.slate600, marginBottom: 12 }}>
+                  Resetting the system will permanently delete all registrations, meal tickets, and logs. This action cannot be undone. User accounts will be preserved.
+                </Text>
+                <Button 
+                  mode="contained" 
+                  icon="delete-forever" 
+                  onPress={() => setResetDialogVisible(true)}
+                  style={{ borderRadius: 12 }}
+                  buttonColor={colors.rose600}
+                >
+                  Reset All System Data
+                </Button>
+              </View>
+            </View>
+          </Card.Content>
+        </Card>
+
+        <Portal>
+          <Dialog visible={resetDialogVisible} onDismiss={() => setResetDialogVisible(false)} style={{ borderRadius: 24, backgroundColor: 'white' }}>
+            <Dialog.Title style={{ color: colors.rose600, fontWeight: '900' }}>Confirm System Reset</Dialog.Title>
+            <Dialog.Content>
+              <Text variant="bodyMedium">
+                Are you absolutely sure you want to reset all data? This will clear all registries and logs. This action is irreversible.
+              </Text>
+            </Dialog.Content>
+            <Dialog.Actions>
+              <Button onPress={() => setResetDialogVisible(false)} textColor={colors.slate500}>Cancel</Button>
+              <Button 
+                onPress={handleResetData} 
+                loading={isResetting} 
+                disabled={isResetting}
+                textColor={colors.rose600}
+                labelStyle={{ fontWeight: '900' }}
+              >
+                YES, RESET DATA
+              </Button>
+            </Dialog.Actions>
+          </Dialog>
+        </Portal>
+      </ScrollView>
     </View>
   );
 };
@@ -2349,14 +3390,56 @@ const styles = StyleSheet.create({
     minHeight: 48,
     boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)',
   },
-  tableCard: { 
-    backgroundColor: colors.white, 
-    borderRadius: 16, 
-    overflow: 'hidden', 
-    borderWidth: 1, 
+  tableCard: {
+    backgroundColor: colors.white,
+    borderRadius: 16,
+    overflow: 'hidden',
+    borderWidth: 1,
     borderColor: colors.slate100,
   },
-  userInfo: { 
+  bulkActionBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingLeft: 20,
+    paddingRight: 12,
+    marginBottom: 14,
+    borderRadius: 14,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.indigo100,
+    overflow: 'hidden',
+  },
+  bulkAccent: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 5,
+    backgroundColor: colors.primary,
+  },
+  bulkCountBadge: {
+    backgroundColor: colors.indigo50,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  bulkRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginLeft: 'auto',
+  },
+  bulkBtn: {
+    borderRadius: 10,
+  },
+  bulkVDivider: {
+    width: 1,
+    height: 24,
+    backgroundColor: colors.slate200,
+    marginHorizontal: 4,
+  },
+  userInfo: {
     flexDirection: 'row', 
     alignItems: 'center' 
   },
@@ -2584,6 +3667,23 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.slate100,
   },
+  itemCardSelected: {
+    borderColor: colors.primary,
+    borderWidth: 2,
+    backgroundColor: colors.indigo50,
+  },
+  toolbarSelectAll: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    paddingRight: 10,
+    paddingLeft: 4,
+    height: 44,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.slate200,
+    backgroundColor: colors.white,
+  },
   cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -2645,19 +3745,33 @@ const styles = StyleSheet.create({
 
 
 
+// Local YYYY-MM-DD (avoids UTC off-by-one from toISOString)
+const localDateStr = (d = new Date()) => {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+};
+
 export const Reports = () => {
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState(null);
   const [activeTab, setActiveTab] = useState('summary');
+  const [isPrinting, setIsPrinting] = useState(false);
+  const [printMenuVisible, setPrintMenuVisible] = useState(false);
+  const [reportDate, setReportDate] = useState(localDateStr());
   const theme = useTheme();
 
   const { userRole, isAuthenticated } = usePermissions();
+  const { showSnackbar } = useSnackbar();
+
+  const today = localDateStr();
 
   useEffect(() => {
     if (isAuthenticated) {
       fetchReportData();
     }
-  }, [isAuthenticated, userRole, activeTab]);
+  }, [isAuthenticated, userRole, activeTab, reportDate]);
 
   const fetchReportData = async () => {
     try {
@@ -2665,23 +3779,91 @@ export const Reports = () => {
       const res = await axios.get(`${API_BASE_URL}/reports/summary`, {
         headers: {
           'x-user-role': userRole
-        }
+        },
+        params: { date: reportDate }
       });
       setData(res.data);
     } catch (error) {
       console.error('Error fetching report data:', error);
-      Alert.alert('Error', 'Failed to fetch reporting data');
+      showSnackbar('Failed to fetch reporting data.', 'error');
     } finally {
       setLoading(false);
     }
   };
 
-  const handlePrint = async () => {
+  // Build a single report section as HTML. scope: 'summary' | 'meals' | 'active' | 'biometric'
+  const buildSection = (scope) => {
+    if (scope === 'summary') {
+      return `
+        <div class="section-title">EXECUTIVE SUMMARY</div>
+        <div class="stats-grid">
+          <div class="stat-box"><div class="stat-label">TOTAL RESIDENTS</div><div class="stat-value">${data.summary.totalRenters}</div></div>
+          <div class="stat-box"><div class="stat-label">ACTIVE MEAL</div><div class="stat-value">${data.summary.activeRenters}</div></div>
+          <div class="stat-box"><div class="stat-label">BIOMETRIC ENROLLED</div><div class="stat-value">${data.biometricUsersList.length}</div></div>
+          <div class="stat-box"><div class="stat-label">DENIED RATE</div><div class="stat-value">${Math.round((data.summary.deniedAccessToday / (data.summary.successfulAccessToday + data.summary.deniedAccessToday || 1)) * 100)}%</div></div>
+        </div>`;
+    }
+    if (scope === 'meals') {
+      return `
+        <div class="section-title">MEALS CLAIMED — ${data.summary.reportDate || reportDate}</div>
+        <div class="stats-grid" style="grid-template-columns: repeat(3, 1fr);">
+          <div class="stat-box"><div class="stat-label">BREAKFAST</div><div class="stat-value">${data.summary.mealsToday?.breakfast ?? 0}</div></div>
+          <div class="stat-box"><div class="stat-label">LUNCH</div><div class="stat-value">${data.summary.mealsToday?.lunch ?? 0}</div></div>
+          <div class="stat-box"><div class="stat-label">DINNER</div><div class="stat-value">${data.summary.mealsToday?.dinner ?? 0}</div></div>
+        </div>
+        ${[['Breakfast', 'breakfast'], ['Lunch', 'lunch'], ['Dinner', 'dinner']].map(([label, key]) => {
+          const list = (data.mealAttendance && data.mealAttendance[key]) || [];
+          return `
+            <div class="section-title">${label.toUpperCase()} ATTENDEES (${list.length})</div>
+            <table>
+              <thead><tr><th>NAME</th><th>FLOOR</th><th>ROOM</th><th>MEAL TYPE</th><th>TIME</th></tr></thead>
+              <tbody>${list.length === 0
+                ? `<tr><td colspan="5" style="color:#94a3b8;">No ${label.toLowerCase()} claimed on this date.</td></tr>`
+                : list.map(r => `<tr><td>${r.name}</td><td>${r.floorNo || 'N/A'}</td><td>${r.roomNo || 'N/A'}</td><td>${r.mealType || 'N/A'}</td><td>${r.time || ''}</td></tr>`).join('')}</tbody>
+            </table>`;
+        }).join('')}`;
+    }
+    if (scope === 'active') {
+      return `
+        <div class="section-title">ACTIVE RENTERS (MEAL PRIVILEGES)</div>
+        <table>
+          <thead><tr><th>NAME</th><th>ROOM</th><th>CONTACT</th><th>DATE REG.</th></tr></thead>
+          <tbody>${data.activeRentersList.map(r => `<tr><td>${r.name}</td><td>${r.roomNo || r.room_no || 'N/A'}</td><td>${r.studentPhone || r.student_phone || 'N/A'}</td><td>${r.date || 'N/A'}</td></tr>`).join('')}</tbody>
+        </table>`;
+    }
+    if (scope === 'biometric') {
+      return `
+        <div class="section-title">BIOMETRIC ENROLLED USERS</div>
+        <table>
+          <thead><tr><th>NAME</th><th>INITIALS</th><th>ROOM</th><th>HAS FINGERPRINT</th></tr></thead>
+          <tbody>${data.biometricUsersList.map(r => `<tr><td>${r.name}</td><td>${r.initials || 'N/A'}</td><td>${r.roomNo || r.room_no || 'N/A'}</td><td>YES</td></tr>`).join('')}</tbody>
+        </table>`;
+    }
+    return '';
+  };
+
+  // scope: 'full' (everything) or one of the section keys
+  const handlePrint = async (scope = 'full') => {
     if (!data) return;
+    setIsPrinting(true);
+    setPrintMenuVisible(false);
 
     const reportId = `SA-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
     const generatedAt = new Date().toLocaleString();
     const currentYear = new Date().getFullYear();
+
+    const TITLES = {
+      full: 'CONFIDENTIAL OFFICIAL REPORT',
+      summary: 'EXECUTIVE SUMMARY',
+      meals: `MEAL ATTENDANCE — ${data.summary.reportDate || reportDate}`,
+      active: 'ACTIVE RENTERS REPORT',
+      biometric: 'BIOMETRIC ENROLLMENT REPORT',
+    };
+
+    const sections = scope === 'full'
+      ? ['summary', 'meals', 'active', 'biometric']
+      : [scope];
+    const body = sections.map((s, i) => (i > 0 ? '<div class="page-break"></div>' : '') + buildSection(s)).join('');
 
     const html = `
       <!DOCTYPE html>
@@ -2690,7 +3872,7 @@ export const Reports = () => {
           <meta charset="utf-8">
           <style>
             @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
-            
+
             body { font-family: 'Inter', sans-serif; padding: 40px; color: #0f172a; line-height: 1.4; }
             .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #6366f1; padding-bottom: 15px; margin-bottom: 20px; }
             .branding h1 { margin: 0; font-size: 24px; color: #6366f1; font-weight: 800; }
@@ -2712,32 +3894,12 @@ export const Reports = () => {
         </head>
         <body>
           <div class="header">
-            <div class="branding"><h1>SecureAccess™</h1><p style="margin:0;font-size:12px;color:#64748b;">Enterprise System</p></div>
+            <div class="branding"><h1>ServeQueue</h1><p style="margin:0;font-size:12px;color:#64748b;">Enterprise System</p></div>
             <div class="metadata">ID: ${reportId}<br>Date: ${generatedAt}</div>
           </div>
-          <div class="classification">CONFIDENTIAL OFFICIAL REPORT</div>
-          
-          <div class="section-title">EXECUTIVE SUMMARY</div>
-          <div class="stats-grid">
-            <div class="stat-box"><div class="stat-label">TOTAL RESIDENTS</div><div class="stat-value">${data.summary.totalRenters}</div></div>
-            <div class="stat-box"><div class="stat-label">ACTIVE MEAL</div><div class="stat-value">${data.summary.activeRenters}</div></div>
-            <div class="stat-box"><div class="stat-label">BIOMETRIC ENROLLED</div><div class="stat-value">${data.biometricUsersList.length}</div></div>
-            <div class="stat-box"><div class="stat-label">DENIED RATE</div><div class="stat-value">${Math.round((data.summary.deniedAccessToday / (data.summary.successfulAccessToday + data.summary.deniedAccessToday || 1)) * 100)}%</div></div>
-          </div>
+          <div class="classification">${TITLES[scope] || TITLES.full}</div>
 
-          <div class="section-title">ACTIVE RENTERS (MEAL PRIVILEGES)</div>
-          <table>
-            <thead><tr><th>NAME</th><th>ROOM</th><th>CONTACT</th><th>DATE REG.</th></tr></thead>
-            <tbody>${data.activeRentersList.map(r => `<tr><td>${r.name}</td><td>${r.roomNo || r.room_no || 'N/A'}</td><td>${r.studentPhone || r.student_phone || 'N/A'}</td><td>${r.date || 'N/A'}</td></tr>`).join('')}</tbody>
-          </table>
-
-          <div class="page-break"></div>
-
-          <div class="section-title">BIOMETRIC ENROLLED USERS</div>
-          <table>
-            <thead><tr><th>NAME</th><th>INITIALS</th><th>ROOM</th><th>HAS FINGERPRINT</th></tr></thead>
-            <tbody>${data.biometricUsersList.map(r => `<tr><td>${r.name}</td><td>${r.initials || 'N/A'}</td><td>${r.roomNo || r.room_no || 'N/A'}</td><td>YES</td></tr>`).join('')}</tbody>
-          </table>
+          ${body}
 
           <div class="signatures"><div class="sig-box">Operations Manager</div><div class="sig-box">Security Supervisor</div></div>
           <div class="footer">© ${currentYear} Renter Systems International. Generated by System Administrator.</div>
@@ -2756,9 +3918,12 @@ export const Reports = () => {
       } else {
         await Print.printAsync({ html });
       }
+      showSnackbar('Report generated.', 'success');
     } catch (error) {
       console.error('Printing error:', error);
-      Alert.alert('Error', 'Failed to generate enterprise report');
+      showSnackbar('Failed to generate report.', 'error');
+    } finally {
+      setIsPrinting(false);
     }
   };
 
@@ -2777,9 +3942,29 @@ export const Reports = () => {
           <Text style={styles.title}>System Reports</Text>
           <Text style={styles.subtitle}>Enterprise analytics and audit summary</Text>
         </View>
-        <Button mode="contained" icon="printer" onPress={handlePrint} style={styles.addButton}>
-          Print Full Report
-        </Button>
+        <Menu
+          visible={printMenuVisible}
+          onDismiss={() => setPrintMenuVisible(false)}
+          anchor={
+            <Button
+              mode="contained"
+              icon="printer"
+              onPress={() => setPrintMenuVisible(true)}
+              loading={isPrinting}
+              disabled={isPrinting}
+              style={styles.addButton}
+            >
+              Print
+            </Button>
+          }
+        >
+          <Menu.Item leadingIcon="file-document-multiple" onPress={() => handlePrint('full')} title="Full Report" />
+          <Divider />
+          <Menu.Item leadingIcon="account-group" onPress={() => handlePrint('active')} title="Active Renters" />
+          <Menu.Item leadingIcon="fingerprint" onPress={() => handlePrint('biometric')} title="Biometric Status" />
+          <Menu.Item leadingIcon="food-fork-drink" onPress={() => handlePrint('meals')} title={`Meals (${data?.summary?.reportDate || reportDate})`} />
+          <Menu.Item leadingIcon="chart-box" onPress={() => handlePrint('summary')} title="Executive Summary" />
+        </Menu>
       </View>
 
       <View style={styles.filtersRow}>
@@ -2799,11 +3984,17 @@ export const Reports = () => {
               icon: 'account-group',
               showSelectedCheck: true 
             },
-            { 
-              value: 'biometric', 
-              label: `Biometric Status (${data?.biometricUsersList?.length || 0})`, 
+            {
+              value: 'biometric',
+              label: `Biometric Status (${data?.biometricUsersList?.length || 0})`,
               icon: 'fingerprint',
-              showSelectedCheck: true 
+              showSelectedCheck: true
+            },
+            {
+              value: 'meals',
+              label: `Meals Today (${(data?.summary?.mealsToday?.breakfast || 0) + (data?.summary?.mealsToday?.lunch || 0) + (data?.summary?.mealsToday?.dinner || 0)})`,
+              icon: 'food-fork-drink',
+              showSelectedCheck: true
             },
           ]}
           style={styles.segmentedButtons}
@@ -2835,6 +4026,37 @@ export const Reports = () => {
                 <View style={{ marginLeft: 16 }}>
                   <Text style={styles.statValue}>{data?.biometricUsersList?.length}</Text>
                   <Text style={styles.statLabel}>Biometric Enrolled</Text>
+                </View>
+              </View>
+            </Card>
+          </View>
+
+          {/* Meals claimed today, per period */}
+          <View style={styles.statsRow}>
+            <Card style={styles.statCard}>
+              <View style={styles.statContent}>
+                <Avatar.Icon size={40} icon="coffee" backgroundColor={colors.indigo50} color={colors.secondary} />
+                <View style={{ marginLeft: 16 }}>
+                  <Text style={styles.statValue}>{data?.summary?.mealsToday?.breakfast ?? 0}</Text>
+                  <Text style={styles.statLabel}>Breakfast Today</Text>
+                </View>
+              </View>
+            </Card>
+            <Card style={styles.statCard}>
+              <View style={styles.statContent}>
+                <Avatar.Icon size={40} icon="food" backgroundColor={colors.indigo50} color={colors.amber600} />
+                <View style={{ marginLeft: 16 }}>
+                  <Text style={styles.statValue}>{data?.summary?.mealsToday?.lunch ?? 0}</Text>
+                  <Text style={styles.statLabel}>Lunch Today</Text>
+                </View>
+              </View>
+            </Card>
+            <Card style={styles.statCard}>
+              <View style={styles.statContent}>
+                <Avatar.Icon size={40} icon="silverware-fork-knife" backgroundColor={colors.indigo50} color={colors.rose600} />
+                <View style={{ marginLeft: 16 }}>
+                  <Text style={styles.statValue}>{data?.summary?.mealsToday?.dinner ?? 0}</Text>
+                  <Text style={styles.statLabel}>Dinner Today</Text>
                 </View>
               </View>
             </Card>
@@ -2902,6 +4124,89 @@ export const Reports = () => {
             ))}
           </DataTable>
         </Card>
+      )}
+
+      {activeTab === 'meals' && (
+        <ScrollView showsVerticalScrollIndicator={false}>
+          <Card style={[styles.tableCard, { marginBottom: 16 }]}>
+            <Card.Content style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 12, paddingVertical: 16 }}>
+              <Avatar.Icon size={36} icon="calendar" style={{ backgroundColor: colors.indigo50 }} color={colors.primary} />
+              <Text variant="titleSmall" style={{ fontWeight: '800', color: colors.slate700 }}>Showing meals for</Text>
+              {Platform.OS === 'web' ? (
+                <input
+                  type="date"
+                  value={reportDate}
+                  max={today}
+                  onChange={(e) => setReportDate(e.target.value || today)}
+                  style={{
+                    fontFamily: 'inherit',
+                    fontSize: 14,
+                    padding: '8px 12px',
+                    borderRadius: 10,
+                    border: `1px solid ${colors.slate200}`,
+                    color: colors.slate800,
+                    background: colors.white,
+                  }}
+                />
+              ) : (
+                <TextInput
+                  value={reportDate}
+                  onChangeText={setReportDate}
+                  mode="outlined"
+                  placeholder="YYYY-MM-DD"
+                  dense
+                  outlineStyle={{ borderRadius: 10 }}
+                  style={{ backgroundColor: colors.white, minWidth: 160 }}
+                />
+              )}
+              {reportDate !== today && (
+                <Button mode="text" compact icon="calendar-today" onPress={() => setReportDate(today)} textColor={colors.primary}>
+                  Today
+                </Button>
+              )}
+              {loading && <ActivityIndicator size="small" color={colors.primary} />}
+            </Card.Content>
+          </Card>
+          {[
+            { key: 'breakfast', label: 'Breakfast', icon: 'coffee', color: colors.secondary },
+            { key: 'lunch', label: 'Lunch', icon: 'food', color: colors.amber600 },
+            { key: 'dinner', label: 'Dinner', icon: 'silverware-fork-knife', color: colors.rose600 },
+          ].map(({ key, label, icon, color }) => {
+            const list = data?.mealAttendance?.[key] || [];
+            return (
+              <Card key={key} style={[styles.tableCard, { marginBottom: 16 }]}>
+                <Card.Title
+                  title={`${label} — ${list.length} student${list.length === 1 ? '' : 's'}`}
+                  left={(props) => <Avatar.Icon {...props} icon={icon} style={{ backgroundColor: colors.indigo50 }} color={color} />}
+                />
+                {list.length === 0 ? (
+                  <View style={{ padding: 24, alignItems: 'center' }}>
+                    <Text style={{ color: colors.slate400 }}>No {label.toLowerCase()} claimed yet today.</Text>
+                  </View>
+                ) : (
+                  <DataTable>
+                    <DataTable.Header>
+                      <DataTable.Title>Name</DataTable.Title>
+                      <DataTable.Title>Floor</DataTable.Title>
+                      <DataTable.Title>Room</DataTable.Title>
+                      <DataTable.Title>Meal Type</DataTable.Title>
+                      <DataTable.Title numeric>Time</DataTable.Title>
+                    </DataTable.Header>
+                    {list.map((item, index) => (
+                      <DataTable.Row key={index}>
+                        <DataTable.Cell>{item.name}</DataTable.Cell>
+                        <DataTable.Cell>{item.floorNo || 'N/A'}</DataTable.Cell>
+                        <DataTable.Cell>{item.roomNo || 'N/A'}</DataTable.Cell>
+                        <DataTable.Cell>{item.mealType || 'N/A'}</DataTable.Cell>
+                        <DataTable.Cell numeric>{item.time}</DataTable.Cell>
+                      </DataTable.Row>
+                    ))}
+                  </DataTable>
+                )}
+              </Card>
+            );
+          })}
+        </ScrollView>
       )}
     </View>
   );

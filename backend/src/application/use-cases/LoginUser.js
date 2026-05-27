@@ -17,7 +17,9 @@ class LoginUser {
       throw new Error('User has no password set. Please contact administrator.');
     }
 
+    console.log(`[DEBUG] Login attempt for user: ${username}`);
     const isPasswordValid = await bcrypt.compare(password, user.password);
+    console.log(`[DEBUG] Password valid: ${isPasswordValid}`);
     
     if (!isPasswordValid) {
       throw new Error('Invalid credentials');

@@ -4,8 +4,11 @@ class UpdateRegistrationStatus {
   }
 
   async execute(id, status) {
-    // Basic validation could also be done here or in the entity
-    return await this.registrationRepository.updateStatus(id, status);
+    let canGenerateMealTicket = undefined;
+    if (status === 'Approved') {
+      canGenerateMealTicket = true;
+    }
+    return await this.registrationRepository.updateStatus(id, status, canGenerateMealTicket);
   }
 }
 
