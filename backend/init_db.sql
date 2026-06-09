@@ -101,10 +101,11 @@ BEGIN
     END IF;
 END $$;
 
--- Force reset admin user to ensure fresh credentials (optional, but kept as per previous version)
-DELETE FROM users WHERE username = 'admin';
+-- Seed the default admin ONLY if no admin account exists.
+-- This preserves existing users (and any changed admin password) during an update.
 INSERT INTO users (name, email, role, status, initials, username, password)
-VALUES ('Admin User', 'admin@secureaccess.io', 'Administrator', 'Active', 'AU', 'admin', '$2b$10$3eSyoWpQ2.Ym962FC5kJn.CqMYwVO1xe7KBeNkRGcHVi83pm.mROe');
+SELECT 'Admin User', 'admin@secureaccess.io', 'Administrator', 'Active', 'AU', 'admin', '$2b$10$3eSyoWpQ2.Ym962FC5kJn.CqMYwVO1xe7KBeNkRGcHVi83pm.mROe'
+WHERE NOT EXISTS (SELECT 1 FROM users WHERE username = 'admin');
 
 -- Create access_logs table
 CREATE TABLE IF NOT EXISTS access_logs (
@@ -118,17 +119,32 @@ CREATE TABLE IF NOT EXISTS access_logs (
     date DATE DEFAULT CURRENT_DATE,
     time VARCHAR(50),
     avatar TEXT,
-    whatsapp_status VARCHAR(50) DEFAULT 'Not Sent',
+    push_status VARCHAR(50) DEFAULT 'Not Sent',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Ensure whatsapp_status exists in access_logs
+-- Track push notification delivery status (for DBs created before this column existed)
 DO $$
 BEGIN
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='access_logs' AND column_name='whatsapp_status') THEN
-        ALTER TABLE access_logs ADD COLUMN whatsapp_status VARCHAR(50) DEFAULT 'Not Sent';
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='access_logs' AND column_name='push_status') THEN
+        ALTER TABLE access_logs ADD COLUMN push_status VARCHAR(50) DEFAULT 'Not Sent';
     END IF;
 END $$;
+
+-- Create push_tokens table (Expo push tokens for the parent/student mobile app).
+-- A registration may have several devices (parent phone, student phone, tablet),
+-- so tokens live in their own table linked back to registrations.
+CREATE TABLE IF NOT EXISTS push_tokens (
+    id SERIAL PRIMARY KEY,
+    registration_id INTEGER REFERENCES registrations(id) ON DELETE CASCADE,
+    recipient_type VARCHAR(20),          -- 'parent' or 'student'
+    expo_token VARCHAR(255) UNIQUE NOT NULL,
+    platform VARCHAR(20),                -- 'android' / 'ios'
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_push_tokens_registration ON push_tokens(registration_id);
 
 -- Create audit_logs table
 CREATE TABLE IF NOT EXISTS audit_logs (
@@ -158,15 +174,7 @@ CREATE TABLE IF NOT EXISTS system_settings (
 );
 
 -- Seed default settings
-INSERT INTO system_settings (key, value)
-VALUES ('whatsapp_biometric_message', 'Hello! Your child {name} has successfully used the biometric terminal for their {mealType} meal at {time}. Thank you!')
-ON CONFLICT (key) DO NOTHING;
-
-INSERT INTO system_settings (key, value)
-VALUES ('wassenger_api_key', '')
-ON CONFLICT (key) DO NOTHING;
-
--- WhatsApp recipient toggles (notify student and/or parent)
+-- Notification recipient toggles (notify student and/or parent)
 INSERT INTO system_settings (key, value)
 VALUES ('notify_parent_enabled', 'true')
 ON CONFLICT (key) DO NOTHING;
@@ -175,9 +183,18 @@ INSERT INTO system_settings (key, value)
 VALUES ('notify_student_enabled', 'true')
 ON CONFLICT (key) DO NOTHING;
 
--- Message template sent to the student's own number
+-- Push notification (Expo) toggle. When enabled, scans push to the mobile app.
 INSERT INTO system_settings (key, value)
-VALUES ('whatsapp_student_message', 'Hello {name}! Your {mealType} meal ticket was issued at {time}. Enjoy your meal!')
+VALUES ('push_enabled', 'true')
+ON CONFLICT (key) DO NOTHING;
+
+-- Title/body templates for the push message. {name}, {mealType}, {time} are substituted.
+INSERT INTO system_settings (key, value)
+VALUES ('push_notification_title', 'Meal Ticket Used')
+ON CONFLICT (key) DO NOTHING;
+
+INSERT INTO system_settings (key, value)
+VALUES ('push_notification_body', 'Hi! {name} used their {mealType} meal ticket at {time}.')
 ON CONFLICT (key) DO NOTHING;
 
 -- One-meal-per-period restriction (Breakfast / Lunch / Dinner)

@@ -1,12 +1,14 @@
 import { Platform } from 'react-native';
+import axios from 'axios';
 
 /**
- * Centrally managed API configuration to ensure consistent behavior 
+ * Centrally managed API configuration to ensure consistent behavior
  * across Web, Android Emulator, and Physical Devices.
  *
  * For distributed terminal deployments, set the following in localStorage:
  *   BACKEND_URL — e.g. "http://192.168.1.100:5005/api"   (central server)
  *   BRIDGE_URL  — e.g. "http://localhost:5003"            (local bridge, stays localhost per terminal)
+ *   API_KEY     — the backend's API_KEY (only needed when the backend is public/cloud)
  */
 
 const LOCAL_HOST = 'localhost';
@@ -45,6 +47,25 @@ const getBridgeUrl = () => {
   }
   return 'http://127.0.0.1:5003';
 };
+
+/**
+ * Reads the backend API key from localStorage (web/terminal builds) and applies
+ * it as a default header on every axios request. Only needed once the backend is
+ * public/cloud and enforces API_KEY; harmless (empty) for local LAN deployments.
+ */
+const applyApiKey = () => {
+  if (Platform.OS !== 'web') return;
+  try {
+    const key = localStorage.getItem('API_KEY');
+    if (key && key.trim().length > 0) {
+      axios.defaults.headers.common['x-api-key'] = key.trim();
+    }
+  } catch (e) {
+    console.warn('Failed to read API_KEY from localStorage', e);
+  }
+};
+
+applyApiKey();
 
 export const API_BASE_URL = getBaseUrl();
 export const BRIDGE_BASE_URL = getBridgeUrl();

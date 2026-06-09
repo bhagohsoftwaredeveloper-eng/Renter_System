@@ -2458,12 +2458,13 @@ export const Configuration = () => {
   const [printerMenuVisible, setPrinterMenuVisible] = useState(false);
   const [resetDialogVisible, setResetDialogVisible] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
-  const [whatsappBiometricMessage, setWhatsappBiometricMessage] = useState('');
-  const [whatsappStudentMessage, setWhatsappStudentMessage] = useState('');
-  const [wassengerApiKey, setWassengerApiKey] = useState('');
+  // Push notification (Expo) configuration
+  const [pushEnabled, setPushEnabled] = useState(true);
+  const [pushNotificationTitle, setPushNotificationTitle] = useState('Meal Ticket Used');
+  const [pushNotificationBody, setPushNotificationBody] = useState('Hi! {name} used their {mealType} meal ticket at {time}.');
   const [notifyParentEnabled, setNotifyParentEnabled] = useState(true);
   const [notifyStudentEnabled, setNotifyStudentEnabled] = useState(true);
-  const [isSavingWhatsapp, setIsSavingWhatsapp] = useState(false);
+  const [isSavingNotify, setIsSavingNotify] = useState(false);
   const [isFetchingSettings, setIsFetchingSettings] = useState(false);
   // Meal service settings
   const [mealRestrictionEnabled, setMealRestrictionEnabled] = useState(false);
@@ -2491,10 +2492,10 @@ export const Configuration = () => {
       const response = await axios.get(`${API_BASE_URL}/system/settings`);
       if (response.data) {
         const s = response.data;
-        if (s.whatsapp_biometric_message) setWhatsappBiometricMessage(s.whatsapp_biometric_message);
-        if (s.whatsapp_student_message) setWhatsappStudentMessage(s.whatsapp_student_message);
-        if (s.wassenger_api_key) setWassengerApiKey(s.wassenger_api_key);
+        if (s.push_notification_title) setPushNotificationTitle(s.push_notification_title);
+        if (s.push_notification_body) setPushNotificationBody(s.push_notification_body);
         // Default ON unless explicitly 'false'
+        setPushEnabled(s.push_enabled !== 'false');
         setNotifyParentEnabled(s.notify_parent_enabled !== 'false');
         setNotifyStudentEnabled(s.notify_student_enabled !== 'false');
         setMealRestrictionEnabled(s.meal_restriction_enabled === 'true');
@@ -2509,25 +2510,25 @@ export const Configuration = () => {
     }
   };
 
-  const handleSaveWhatsappMessage = async () => {
+  const handleSaveNotificationSettings = async () => {
     try {
-      setIsSavingWhatsapp(true);
+      setIsSavingNotify(true);
       const updates = [
-        { key: 'whatsapp_biometric_message', value: whatsappBiometricMessage },
-        { key: 'whatsapp_student_message', value: whatsappStudentMessage },
-        { key: 'wassenger_api_key', value: wassengerApiKey },
+        { key: 'push_enabled', value: pushEnabled ? 'true' : 'false' },
+        { key: 'push_notification_title', value: pushNotificationTitle },
+        { key: 'push_notification_body', value: pushNotificationBody },
         { key: 'notify_parent_enabled', value: notifyParentEnabled ? 'true' : 'false' },
         { key: 'notify_student_enabled', value: notifyStudentEnabled ? 'true' : 'false' }
       ];
       for (const u of updates) {
         await axios.post(`${API_BASE_URL}/system/settings`, u);
       }
-      showSnackbar('WhatsApp notification settings saved.', 'success');
+      showSnackbar('Notification settings saved.', 'success');
     } catch (error) {
-      console.error('Failed to save WhatsApp message:', error);
-      showSnackbar('Could not update WhatsApp notification settings.', 'error');
+      console.error('Failed to save notification settings:', error);
+      showSnackbar('Could not update notification settings.', 'error');
     } finally {
-      setIsSavingWhatsapp(false);
+      setIsSavingNotify(false);
     }
   };
 
@@ -2900,35 +2901,24 @@ export const Configuration = () => {
           </Card.Content>
         </Card>
  
-        {/* WhatsApp Notification Configuration */}
+        {/* Push Notification Configuration */}
         <Card style={[styles.tableCard, { marginBottom: 24 }]}>
           <Card.Title
-            title="WhatsApp Notifications"
-            subtitle="Customize automated messages sent to parents and students"
-            left={(props) => <Avatar.Icon {...props} icon="whatsapp" style={{ backgroundColor: colors.emerald50 }} color={colors.emerald600} />}
+            title="Push Notifications"
+            subtitle="Alerts sent to the RenterNotify mobile app"
+            left={(props) => <Avatar.Icon {...props} icon="bell-ring" style={{ backgroundColor: colors.emerald50 }} color={colors.emerald600} />}
           />
           <Card.Content style={{ paddingTop: 8 }}>
             <View style={{ gap: 16 }}>
-              <View style={styles.inputGroup}>
-                <Text variant="labelMedium" style={styles.inputLabel}>Biometric Scan Message Template</Text>
-                <TextInput
-                  value={whatsappBiometricMessage}
-                  onChangeText={setWhatsappBiometricMessage}
-                  mode="outlined"
-                  multiline
-                  numberOfLines={4}
-                  placeholder="Enter message template..."
-                  outlineStyle={{ borderRadius: 12 }}
-                  style={{ backgroundColor: colors.white }}
-                />
-                <View style={{ backgroundColor: colors.slate50, borderRadius: 12, padding: 12, marginTop: 12 }}>
-                  <Text variant="labelSmall" style={{ color: colors.slate700, fontWeight: '800', marginBottom: 4 }}>AVAILABLE PLACEHOLDERS</Text>
-                  <Text variant="bodySmall" style={{ color: colors.slate600 }}>
-                    <Text style={{ fontWeight: 'bold' }}>{'{name}'}</Text> - Renter's Full Name{'\n'}
-                    <Text style={{ fontWeight: 'bold' }}>{'{mealType}'}</Text> - Assigned Meal (e.g. Veggie){'\n'}
-                    <Text style={{ fontWeight: 'bold' }}>{'{time}'}</Text> - Time of biometric scan
+              {/* Master enable */}
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 6 }}>
+                <View style={{ flex: 1, paddingRight: 12 }}>
+                  <Text variant="bodyMedium" style={{ fontWeight: '700', color: colors.slate700 }}>Enable Push Notifications</Text>
+                  <Text variant="bodySmall" style={{ color: colors.slate500 }}>
+                    When on, biometric scans and manual tickets push to registered devices.
                   </Text>
                 </View>
+                <Switch value={pushEnabled} onValueChange={setPushEnabled} color={colors.emerald600} />
               </View>
 
               <Divider />
@@ -2939,14 +2929,14 @@ export const Configuration = () => {
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 6 }}>
                   <View style={{ flex: 1 }}>
                     <Text variant="bodyMedium" style={{ fontWeight: '700', color: colors.slate700 }}>Notify Parent</Text>
-                    <Text variant="bodySmall" style={{ color: colors.slate500 }}>Send to the registered parent number.</Text>
+                    <Text variant="bodySmall" style={{ color: colors.slate500 }}>Send to the parent's registered device.</Text>
                   </View>
                   <Switch value={notifyParentEnabled} onValueChange={setNotifyParentEnabled} color={colors.emerald600} />
                 </View>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 6 }}>
                   <View style={{ flex: 1 }}>
                     <Text variant="bodyMedium" style={{ fontWeight: '700', color: colors.slate700 }}>Notify Student</Text>
-                    <Text variant="bodySmall" style={{ color: colors.slate500 }}>Send to the student's own number.</Text>
+                    <Text variant="bodySmall" style={{ color: colors.slate500 }}>Send to the student's own device.</Text>
                   </View>
                   <Switch value={notifyStudentEnabled} onValueChange={setNotifyStudentEnabled} color={colors.emerald600} />
                 </View>
@@ -2955,47 +2945,45 @@ export const Configuration = () => {
               <Divider />
 
               <View style={styles.inputGroup}>
-                <Text variant="labelMedium" style={styles.inputLabel}>Student Message Template</Text>
+                <Text variant="labelMedium" style={styles.inputLabel}>Notification Title</Text>
                 <TextInput
-                  value={whatsappStudentMessage}
-                  onChangeText={setWhatsappStudentMessage}
+                  value={pushNotificationTitle}
+                  onChangeText={setPushNotificationTitle}
+                  mode="outlined"
+                  placeholder="e.g. Meal Ticket Used"
+                  outlineStyle={{ borderRadius: 12 }}
+                  style={{ backgroundColor: colors.white }}
+                />
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text variant="labelMedium" style={styles.inputLabel}>Notification Message</Text>
+                <TextInput
+                  value={pushNotificationBody}
+                  onChangeText={setPushNotificationBody}
                   mode="outlined"
                   multiline
                   numberOfLines={4}
-                  placeholder="Message sent to the student..."
+                  placeholder="Enter the notification body..."
                   outlineStyle={{ borderRadius: 12 }}
                   style={{ backgroundColor: colors.white }}
                 />
-                <Text variant="bodySmall" style={{ color: colors.slate500, marginTop: 4 }}>
-                  Uses the same placeholders: {'{name}'}, {'{mealType}'}, {'{time}'}.
-                </Text>
+                <View style={{ backgroundColor: colors.slate50, borderRadius: 12, padding: 12, marginTop: 12 }}>
+                  <Text variant="labelSmall" style={{ color: colors.slate700, fontWeight: '800', marginBottom: 4 }}>AVAILABLE PLACEHOLDERS</Text>
+                  <Text variant="bodySmall" style={{ color: colors.slate600 }}>
+                    <Text style={{ fontWeight: 'bold' }}>{'{name}'}</Text> - Renter's Full Name{'\n'}
+                    <Text style={{ fontWeight: 'bold' }}>{'{mealType}'}</Text> - Assigned Meal (e.g. Veggie){'\n'}
+                    <Text style={{ fontWeight: 'bold' }}>{'{time}'}</Text> - Time of the scan
+                  </Text>
+                </View>
               </View>
 
-              <Divider />
-
-              <View style={styles.inputGroup}>
-                <Text variant="labelMedium" style={styles.inputLabel}>Wassenger API Key</Text>
-                <TextInput
-                  value={wassengerApiKey}
-                  onChangeText={setWassengerApiKey}
-                  mode="outlined"
-                  placeholder="Enter Wassenger API Key..."
-                  outlineStyle={{ borderRadius: 12 }}
-                  secureTextEntry
-                  left={<TextInput.Icon icon="key" color={colors.slate400} />}
-                  style={{ backgroundColor: colors.white }}
-                />
-                <Text variant="bodySmall" style={{ color: colors.slate500, marginTop: 4 }}>
-                  The API key from your Wassenger dashboard. Keep this private.
-                </Text>
-              </View>
-
-              <Button 
-                mode="contained" 
-                icon="message-check" 
-                onPress={handleSaveWhatsappMessage}
-                loading={isSavingWhatsapp}
-                disabled={isSavingWhatsapp || isFetchingSettings}
+              <Button
+                mode="contained"
+                icon="bell-check"
+                onPress={handleSaveNotificationSettings}
+                loading={isSavingNotify}
+                disabled={isSavingNotify || isFetchingSettings}
                 style={[styles.addButton, { backgroundColor: colors.emerald600 }]}
               >
                 Save Notification Settings

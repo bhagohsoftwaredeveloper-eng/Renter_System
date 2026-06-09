@@ -57,7 +57,8 @@ const GetAccessLogs = require('./src/application/use-cases/GetAccessLogs');
 const CreateAccessLog = require('./src/application/use-cases/CreateAccessLog');
 const GetAuditLogs = require('./src/application/use-cases/GetAuditLogs');
 const CreateAuditLog = require('./src/application/use-cases/CreateAuditLog');
-const WhatsAppService = require('./src/infrastructure/services/WhatsAppService');
+const PushNotificationService = require('./src/infrastructure/services/PushNotificationService');
+const RegisterPushToken = require('./src/application/use-cases/RegisterPushToken');
 
 const SetMealTicketExpiration = require('./src/application/use-cases/SetMealTicketExpiration');
 const GetExpiredMealTickets = require('./src/application/use-cases/GetExpiredMealTickets');
@@ -69,6 +70,7 @@ const PostgresMealTicketRepository = require('./src/infrastructure/repositories/
 const PostgresAccessLogRepository = require('./src/infrastructure/repositories/PostgresAccessLogRepository');
 const PostgresAuditLogRepository = require('./src/infrastructure/repositories/PostgresAuditLogRepository');
 const PostgresSystemSettingsRepository = require('./src/infrastructure/repositories/PostgresSystemSettingsRepository');
+const PostgresPushTokenRepository = require('./src/infrastructure/repositories/PostgresPushTokenRepository');
 // Interface Controllers & Routes
 const RegistrationController = require('./src/interfaces/controllers/RegistrationController');
 const UserController = require('./src/interfaces/controllers/UserController');
@@ -80,6 +82,9 @@ const createUserRoutes = require('./src/interfaces/routes/userRoutes');
 const createMealTicketRoutes = require('./src/interfaces/routes/mealTicketRoutes');
 const createAccessLogRoutes = require('./src/interfaces/routes/accessLogRoutes');
 const createAuditLogRoutes = require('./src/interfaces/routes/auditLogRoutes');
+const PushController = require('./src/interfaces/controllers/PushController');
+const createPushRoutes = require('./src/interfaces/routes/pushRoutes');
+const createApiKeyAuth = require('./src/infrastructure/middleware/apiKeyAuth');
 const GetReportSummary = require('./src/application/use-cases/GetReportSummary');
 const ReportController = require('./src/interfaces/controllers/ReportController');
 const createReportRoutes = require('./src/interfaces/routes/reportRoutes');
@@ -108,7 +113,8 @@ const accessLogRepository = new PostgresAccessLogRepository(db);
 const auditLogRepository = new PostgresAuditLogRepository(db);
 const systemRepository = new PostgresSystemRepository(db);
 const systemSettingsRepository = new PostgresSystemSettingsRepository(db);
-const whatsAppService = new WhatsAppService();
+const pushTokenRepository = new PostgresPushTokenRepository(db);
+const pushNotificationService = new PushNotificationService();
 
 const getRegistrations = new GetRegistrations(registrationRepository);
 const createRegistration = new CreateRegistration(registrationRepository);
@@ -130,7 +136,8 @@ const generateMealTicket = new GenerateMealTicket(mealTicketRepository, registra
 const getMealTicketsByRegistration = new GetMealTicketsByRegistration(mealTicketRepository);
 const toggleMealTicketAllowance = new ToggleMealTicketAllowance(registrationRepository);
 const getAccessLogs = new GetAccessLogs(accessLogRepository);
-const createAccessLog = new CreateAccessLog(accessLogRepository, registrationRepository, whatsAppService, systemSettingsRepository);
+const createAccessLog = new CreateAccessLog(accessLogRepository, registrationRepository, systemSettingsRepository, pushNotificationService, pushTokenRepository);
+const registerPushToken = new RegisterPushToken(pushTokenRepository, registrationRepository);
 const getAuditLogs = new GetAuditLogs(auditLogRepository);
 const createAuditLog = new CreateAuditLog(auditLogRepository);
 const getReportSummary = new GetReportSummary(registrationRepository, accessLogRepository, mealTicketRepository, systemSettingsRepository);
@@ -158,15 +165,23 @@ const accessLogController = new AccessLogController(getAccessLogs, createAccessL
 const auditLogController = new AuditLogController(getAuditLogs, createAuditLog);
 const reportController = new ReportController(getReportSummary);
 const systemController = new SystemController(resetData, exportDataExcel, exportDataSQL, systemSettingsRepository);
+const pushController = new PushController(registerPushToken, pushTokenRepository);
+
+// Auth: admin/terminal routes require API_KEY; the mobile app's push routes
+// require the lower-trust MOBILE_API_KEY. Both are no-ops until their env var
+// is set (so local dev keeps working; cloud deploy turns them on).
+const adminAuth = createApiKeyAuth('API_KEY');
+const mobileAuth = createApiKeyAuth('MOBILE_API_KEY');
 
 // Routes
-app.use('/api/registrations', createRegistrationRoutes(registrationController));
-app.use('/api/users', createUserRoutes(userController));
-app.use('/api/meal-tickets', createMealTicketRoutes(mealTicketController));
-app.use('/api/access-logs', createAccessLogRoutes(accessLogController));
-app.use('/api/audit-logs', createAuditLogRoutes(auditLogController));
-app.use('/api/reports', createReportRoutes(reportController));
-app.use('/api/system', createSystemRoutes(systemController));
+app.use('/api/registrations', adminAuth, createRegistrationRoutes(registrationController));
+app.use('/api/users', adminAuth, createUserRoutes(userController));
+app.use('/api/meal-tickets', adminAuth, createMealTicketRoutes(mealTicketController));
+app.use('/api/access-logs', adminAuth, createAccessLogRoutes(accessLogController));
+app.use('/api/audit-logs', adminAuth, createAuditLogRoutes(auditLogController));
+app.use('/api/reports', adminAuth, createReportRoutes(reportController));
+app.use('/api/system', adminAuth, createSystemRoutes(systemController));
+app.use('/api/push', mobileAuth, createPushRoutes(pushController));
 
 // Health check
 app.get('/health', (req, res) => {
@@ -178,7 +193,20 @@ async function startServer() {
   try {
     const { rows } = await db.query('SELECT NOW()');
     console.log(`[${new Date().toISOString()}] DB Connection SUCCESS: Database is reachable.`);
-    
+
+    // Turnkey schema setup for fresh cloud databases. init_db.sql is fully
+    // idempotent (IF NOT EXISTS / ON CONFLICT), so running it on boot is safe.
+    // Guarded so existing local deployments don't run it unless asked.
+    if (process.env.RUN_DB_INIT === 'true') {
+      try {
+        const initSql = fs.readFileSync(path.join(__dirname, 'init_db.sql'), 'utf8');
+        await db.query(initSql);
+        console.log(`[${new Date().toISOString()}] DB schema initialized from init_db.sql`);
+      } catch (initErr) {
+        console.error(`[${new Date().toISOString()}] DB init failed:`, initErr.message);
+      }
+    }
+
     app.listen(PORT, () => {
       console.log(`[${new Date().toISOString()}] Server running on port ${PORT} with Clean Architecture`);
     });

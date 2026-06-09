@@ -37,7 +37,7 @@ export const BiometricTerminal = ({ onExit, registrationId = null }) => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [terminalError, setTerminalError] = useState(null);
   const [menuVisible, setMenuVisible] = useState(false);
-  const [whatsappStatus, setWhatsappStatus] = useState(null); // null, 'Sent', 'Failed', 'Error'
+  const [pushStatus, setPushStatus] = useState(null); // null, 'Sent', 'Failed', 'Error'
   const theme = useTheme();
   
   const openMenu = () => setMenuVisible(true);
@@ -157,8 +157,8 @@ export const BiometricTerminal = ({ onExit, registrationId = null }) => {
               avatar: null
             });
             
-            if (logResponse.data && logResponse.data.whatsapp_status) {
-              setWhatsappStatus(logResponse.data.whatsapp_status);
+            if (logResponse.data && logResponse.data.push_status) {
+              setPushStatus(logResponse.data.push_status);
             }
           } catch (err) {
             console.error('Failed to log biometric access', err);
@@ -271,7 +271,7 @@ export const BiometricTerminal = ({ onExit, registrationId = null }) => {
     setProgress(0);
     setScanStep(0);
     setMealTicket(null);
-    setWhatsappStatus(null);
+    setPushStatus(null);
     setTerminalError(null);
     scanAnim.setValue(0);
   };
@@ -387,16 +387,16 @@ export const BiometricTerminal = ({ onExit, registrationId = null }) => {
                   </Surface>
                 )}
 
-                {status === 'SUCCESS' && whatsappStatus === 'Sent' && (
-                  <Surface style={styles.whatsappBadge} elevation={0}>
-                    <Avatar.Icon size={20} icon="whatsapp" style={{ backgroundColor: 'transparent' }} color={colors.emerald600} />
-                    <Text variant="labelSmall" style={styles.whatsappBadgeText}>PARENT NOTIFIED</Text>
+                {status === 'SUCCESS' && pushStatus === 'Sent' && (
+                  <Surface style={styles.notifyBadge} elevation={0}>
+                    <Avatar.Icon size={20} icon="bell-ring" style={{ backgroundColor: 'transparent' }} color={colors.emerald600} />
+                    <Text variant="labelSmall" style={styles.notifyBadgeText}>PARENT NOTIFIED</Text>
                   </Surface>
                 )}
-                {status === 'SUCCESS' && whatsappStatus === 'Failed' && (
-                  <Surface style={[styles.whatsappBadge, { backgroundColor: colors.rose50 }]} elevation={0}>
-                    <Avatar.Icon size={20} icon="whatsapp" style={{ backgroundColor: 'transparent' }} color={colors.rose600} />
-                    <Text variant="labelSmall" style={[styles.whatsappBadgeText, { color: colors.rose600 }]}>NOTIFY FAILED</Text>
+                {status === 'SUCCESS' && pushStatus === 'Failed' && (
+                  <Surface style={[styles.notifyBadge, { backgroundColor: colors.rose50 }]} elevation={0}>
+                    <Avatar.Icon size={20} icon="bell-off" style={{ backgroundColor: 'transparent' }} color={colors.rose600} />
+                    <Text variant="labelSmall" style={[styles.notifyBadgeText, { color: colors.rose600 }]}>NOTIFY FAILED</Text>
                   </Surface>
                 )}
               </View>
@@ -473,17 +473,17 @@ const styles = StyleSheet.create({
   ticketHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
   ticketHeaderText: { color: colors.emerald600, fontWeight: 'bold' },
   ticketNumber: { color: colors.emerald600, fontWeight: '900' },
-  whatsappBadge: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    gap: 4, 
-    marginTop: 12, 
-    paddingHorizontal: 12, 
-    paddingVertical: 4, 
-    borderRadius: 16, 
+  notifyBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 16,
     backgroundColor: colors.emerald50,
     borderWidth: 1,
     borderColor: 'rgba(16, 185, 129, 0.2)'
   },
-  whatsappBadgeText: { color: colors.emerald600, fontWeight: '900', fontSize: 10, letterSpacing: 0.5 }
+  notifyBadgeText: { color: colors.emerald600, fontWeight: '900', fontSize: 10, letterSpacing: 0.5 }
 });

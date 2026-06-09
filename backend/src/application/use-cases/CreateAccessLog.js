@@ -1,9 +1,18 @@
 class CreateAccessLog {
-  constructor(accessLogRepository, registrationRepository, whatsAppService, systemSettingsRepository) {
+  constructor(accessLogRepository, registrationRepository, systemSettingsRepository, pushNotificationService, pushTokenRepository) {
     this.accessLogRepository = accessLogRepository;
     this.registrationRepository = registrationRepository;
-    this.whatsAppService = whatsAppService;
     this.systemSettingsRepository = systemSettingsRepository;
+    this.pushNotificationService = pushNotificationService;
+    this.pushTokenRepository = pushTokenRepository;
+  }
+
+  // Replace {name} {mealType} {time} placeholders in a push template string.
+  _fillTemplate(template, { name, mealType, time }) {
+    return String(template || '')
+      .replace(/\{name\}/g, name ?? '')
+      .replace(/\{mealType\}/g, mealType ?? '')
+      .replace(/\{time\}/g, time ?? '');
   }
 
   async execute(logData) {
@@ -11,18 +20,18 @@ class CreateAccessLog {
     const now = new Date();
     const date = logData.date || now.toISOString().split('T')[0];
     const time = logData.time || now.toLocaleTimeString('en-US', { hour12: true, hour: '2-digit', minute: '2-digit', second: '2-digit' });
-    
+
     const newLogData = {
       ...logData,
       date,
       time
     };
-    
-    let whatsappStatus = 'Not Sent';
 
-    // Trigger WhatsApp Notification for Biometric Scans or Manual Ticket Generation.
+    let pushStatus = 'Not Sent';
+
+    // Push notification for Biometric Scans or Manual Ticket Generation.
     // Messages can go to the parent and/or the student, each controlled by a toggle.
-    if ((logData.type === 'Biometric Scan' || logData.type === 'Manual Ticket') && this.registrationRepository && this.whatsAppService && this.systemSettingsRepository) {
+    if ((logData.type === 'Biometric Scan' || logData.type === 'Manual Ticket') && this.registrationRepository && this.pushNotificationService && this.pushTokenRepository && this.systemSettingsRepository) {
       try {
         const registration = await this.registrationRepository.getByName(logData.name);
         if (registration) {
@@ -30,60 +39,42 @@ class CreateAccessLog {
           const notifyParent = (await this.systemSettingsRepository.get('notify_parent_enabled')) !== 'false';
           const notifyStudent = (await this.systemSettingsRepository.get('notify_student_enabled')) !== 'false';
 
-          // Templates: parent (existing key) + student (new key)
-          const parentTemplate = (await this.systemSettingsRepository.get('whatsapp_biometric_message'))
-            || 'Hello! Your child {name} has successfully used the biometric terminal for their {mealType} meal at {time}. Thank you!';
-          const studentTemplate = (await this.systemSettingsRepository.get('whatsapp_student_message'))
-            || 'Hello {name}! Your {mealType} meal ticket was issued at {time}. Enjoy your meal!';
+          const displayName = registration.name || `${registration.firstName || ''} ${registration.lastName || ''}`.trim();
+          const mealType = registration.mealType || 'Non-Veggie';
 
-          const fillTemplate = (tpl) => tpl
-            .replace(/{name}/g, registration.name || `${registration.firstName || ''} ${registration.lastName || ''}`.trim())
-            .replace(/{time}/g, time)
-            .replace(/{mealType}/g, registration.mealType || 'Non-Veggie');
+          const pushEnabled = (await this.systemSettingsRepository.get('push_enabled')) !== 'false';
+          if (pushEnabled) {
+            const allTokens = await this.pushTokenRepository.getByRegistrationId(registration.id);
+            const targetTokens = allTokens
+              .filter((t) => (t.recipient_type === 'parent' && notifyParent) || (t.recipient_type === 'student' && notifyStudent))
+              .map((t) => t.expo_token);
 
-          const wassengerApiKey = await this.systemSettingsRepository.get('wassenger_api_key');
-
-          // Build the list of recipients to notify
-          const recipients = [];
-          if (notifyParent && registration.parentPhone) {
-            recipients.push({ label: 'parent', phone: registration.parentPhone, message: fillTemplate(parentTemplate) });
-          }
-          if (notifyStudent && registration.studentPhone) {
-            recipients.push({ label: 'student', phone: registration.studentPhone, message: fillTemplate(studentTemplate) });
-          }
-
-          let anySent = false;
-          let anyFailed = false;
-          for (const r of recipients) {
-            console.log(`[CreateAccessLog] Sending WhatsApp to ${r.label} (${r.phone}): ${r.message}`);
-            const waResult = await this.whatsAppService.sendMessage(r.phone, r.message, wassengerApiKey);
-            if (waResult && !waResult.error) {
-              anySent = true;
+            if (targetTokens.length === 0) {
+              pushStatus = 'Not Sent';
             } else {
-              anyFailed = true;
-            }
-          }
+              const titleTpl = (await this.systemSettingsRepository.get('push_notification_title')) || 'Meal Ticket Used';
+              const bodyTpl = (await this.systemSettingsRepository.get('push_notification_body')) || 'Hi! {name} used their {mealType} meal ticket at {time}.';
+              const fillData = { name: displayName, mealType, time };
 
-          if (recipients.length === 0) {
-            whatsappStatus = 'Not Sent';
-          } else if (anySent && !anyFailed) {
-            whatsappStatus = 'Sent';
-          } else if (anySent && anyFailed) {
-            whatsappStatus = 'Partial';
-          } else {
-            whatsappStatus = 'Failed';
+              const pushResult = await this.pushNotificationService.send(targetTokens, {
+                title: this._fillTemplate(titleTpl, fillData),
+                body: this._fillTemplate(bodyTpl, fillData),
+                data: { type: logData.type, registrationId: registration.id, time },
+              });
+              pushStatus = pushResult && !pushResult.error ? 'Sent' : 'Failed';
+            }
           }
         }
       } catch (err) {
         console.error('[CreateAccessLog] Failed to trigger notification:', err.message);
-        whatsappStatus = 'Error';
+        pushStatus = 'Error';
       }
     }
-    
+
     // Add the status to the log data and save
-    newLogData.whatsappStatus = whatsappStatus;
+    newLogData.pushStatus = pushStatus;
     const savedLog = await this.accessLogRepository.create(newLogData);
-    
+
     return savedLog;
   }
 }

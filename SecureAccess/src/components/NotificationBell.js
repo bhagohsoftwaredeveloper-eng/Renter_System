@@ -26,6 +26,17 @@ export const NotificationBell = () => {
         headers['x-user-role'] = 'Administrator';
       }
 
+      // This component uses fetch (not axios), so include the cloud API key
+      // explicitly when one is configured for this terminal.
+      try {
+        const apiKey = typeof localStorage !== 'undefined' && localStorage.getItem('API_KEY');
+        if (apiKey && apiKey.trim().length > 0) {
+          headers['x-api-key'] = apiKey.trim();
+        }
+      } catch (e) {
+        // ignore — non-web platforms have no localStorage
+      }
+
       const response = await fetch(`${API_BASE_URL}/registrations/expired-meal-tickets`, {
         headers
       });

@@ -4,13 +4,19 @@ const PostgresRegistrationRepository = require('./src/infrastructure/repositorie
 const PostgresSystemSettingsRepository = require('./src/infrastructure/repositories/PostgresSystemSettingsRepository');
 const CreateAccessLog = require('./src/application/use-cases/CreateAccessLog');
 
-class MockWhatsAppService {
-  async sendMessage(to, message, apiKey) {
-    console.log('[MockWhatsAppService] sendMessage called with:');
-    console.log('  to:', to);
-    console.log('  message:', message);
-    console.log('  apiKey:', apiKey);
-    return { id: 'mock-id' };
+// Pretends a parent device is registered and logs what would be pushed.
+class MockPushTokenRepository {
+  async getByRegistrationId(registrationId) {
+    return [{ recipient_type: 'parent', expo_token: 'ExponentPushToken[mock]' }];
+  }
+}
+
+class MockPushNotificationService {
+  async send(tokens, payload) {
+    console.log('[MockPushNotificationService] send called with:');
+    console.log('  tokens:', tokens);
+    console.log('  payload:', payload);
+    return { data: [{ status: 'ok' }] };
   }
 }
 
@@ -19,9 +25,10 @@ async function test() {
     const accessLogRepo = new PostgresAccessLogRepository(db);
     const regRepo = new PostgresRegistrationRepository(db);
     const settingsRepo = new PostgresSystemSettingsRepository(db);
-    const mockWS = new MockWhatsAppService();
+    const mockPush = new MockPushNotificationService();
+    const mockTokens = new MockPushTokenRepository();
 
-    const createAccessLog = new CreateAccessLog(accessLogRepo, regRepo, mockWS, settingsRepo);
+    const createAccessLog = new CreateAccessLog(accessLogRepo, regRepo, settingsRepo, mockPush, mockTokens);
 
     // Mock a registration with a phone number
     console.log('Mocking registration...');
@@ -35,7 +42,8 @@ async function test() {
     };
 
     console.log('Executing CreateAccessLog...');
-    await createAccessLog.execute(logData);
+    const saved = await createAccessLog.execute(logData);
+    console.log('Saved log push_status:', saved.push_status);
 
     console.log('Test completed successfully.');
     process.exit(0);
