@@ -6,10 +6,19 @@
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
+    "icon": "./assets/icon.png",
     "android": {
       "package": "com.servequeue.renternotify",
+      "googleServicesFile": "./google-services.json",
       "useNextNotificationsApi": true,
-      "permissions": ["RECEIVE_BOOT_COMPLETED", "VIBRATE"]
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0F766E"
+      },
+      "permissions": [
+        "RECEIVE_BOOT_COMPLETED",
+        "VIBRATE"
+      ]
     },
     "ios": {
       "bundleIdentifier": "com.servequeue.renternotify",
@@ -19,6 +28,7 @@
       [
         "expo-notifications",
         {
+          "icon": "./assets/notification-icon.png",
           "color": "#0F766E"
         }
       ]
@@ -27,8 +37,9 @@
       "apiBaseUrl": "https://rentersystem-production.up.railway.app",
       "mobileApiKey": "3b5d12f9c1e476ca46bd961c0605d38e909f78c807f7575b",
       "eas": {
-        "projectId": "REPLACE_WITH_EAS_PROJECT_ID"
+        "projectId": "c6bda12a-8ff3-4e82-af38-b222678b5af2"
       }
-    }
+    },
+    "owner": "beulahit"
   }
 }

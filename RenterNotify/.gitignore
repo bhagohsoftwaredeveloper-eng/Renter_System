@@ -5,3 +5,12 @@ web-build/
 *.log
 .DS_Store
 *.orig.*
+
+# Firebase / FCM secrets — never commit
+google-services.json
+GoogleService-Info.plist
+fcm-service-account.json
+*-firebase-adminsdk-*.json
+
+# Debug screenshots
+emulator*.png
