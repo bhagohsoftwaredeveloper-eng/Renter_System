@@ -31,6 +31,12 @@
           "icon": "./assets/notification-icon.png",
           "color": "#0F766E"
         }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow Renter Notify to use the camera to scan your QR code."
+        }
       ]
     ],
     "extra": {

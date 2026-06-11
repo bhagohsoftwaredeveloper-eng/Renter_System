@@ -22,6 +22,8 @@ import {
   Switch
 } from 'react-native-paper';
 import axios from 'axios';
+import QRCode from 'react-native-qrcode-svg';
+import QRCodeLib from 'qrcode';
 import { colors } from '../theme/colors';
 import { Table } from '../components/Table';
 import { CircleCheckbox } from '../components/CircleCheckbox';
@@ -82,6 +84,7 @@ const MOCK_PERMISSIONS = [
 
 export const Registrations = () => {
   const [data, setData] = useState([]);
+  const [emailingQr, setEmailingQr] = useState(false);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [viewType, setViewType] = useState('table');
@@ -420,6 +423,77 @@ export const Registrations = () => {
     }
   };
 
+  // Builds a printable PDF of QR cards (one per registration in the current view).
+  // Each renter scans their card in the Renter Notify app to set up alerts.
+  const handlePrintQrCards = async () => {
+    try {
+      const rows = (filteredData || []).map((r) => ({
+        reg: r.registration_number || r.registrationNumber || '',
+        phone: r.parent_phone || r.parentPhone || r.student_phone || r.studentPhone || '',
+        name: r.name || `${r.first_name || r.firstName || ''} ${r.last_name || r.lastName || ''}`.trim(),
+      })).filter((r) => r.reg && r.phone);
+
+      if (rows.length === 0) {
+        Alert.alert('No QR cards', 'No registrations with a registration number and phone in the current view.');
+        return;
+      }
+
+      const cards = await Promise.all(rows.map(async (r) => {
+        const svg = await QRCodeLib.toString(
+          JSON.stringify({ registrationNumber: r.reg, phone: r.phone }),
+          { type: 'svg', margin: 1, color: { dark: '#0F766E', light: '#ffffff' } }
+        );
+        return `<div class="card">
+          <div class="brand">Renter Notify</div>
+          <div class="qr">${svg}</div>
+          <div class="name">${r.name || 'Renter'}</div>
+          <div class="reg">Reg #${r.reg}</div>
+          <div class="hint">Open the Renter Notify app &rarr; tap "Scan QR Code"</div>
+        </div>`;
+      }));
+
+      const html = `<html><head><meta charset="utf-8"/><style>
+        * { box-sizing: border-box; font-family: -apple-system, Roboto, Arial, sans-serif; }
+        body { margin: 0; padding: 14px; }
+        .grid { display: flex; flex-wrap: wrap; gap: 12px; }
+        .card { width: 31%; border: 1.5px dashed #94a3b8; border-radius: 12px; padding: 14px; text-align: center; page-break-inside: avoid; }
+        .brand { color: #0F766E; font-weight: 700; font-size: 13px; margin-bottom: 8px; }
+        .qr svg { width: 150px; height: 150px; }
+        .name { font-weight: 700; font-size: 14px; margin-top: 8px; color: #0F172A; }
+        .reg { color: #0F766E; font-weight: 700; font-size: 13px; }
+        .hint { color: #64748b; font-size: 10px; margin-top: 6px; }
+      </style></head><body><div class="grid">${cards.join('')}</div></body></html>`;
+
+      await Print.printAsync({ html });
+    } catch (e) {
+      Alert.alert('Print failed', e?.message || 'Could not generate QR cards.');
+    }
+  };
+
+  // Emails every renter (with an email + phone) their Renter Notify QR code.
+  const handleEmailQrToAll = async () => {
+    if (typeof window !== 'undefined' && window.confirm &&
+        !window.confirm('Email the Renter Notify QR code to all renters who have an email address?')) {
+      return;
+    }
+    try {
+      setEmailingQr(true);
+      const res = await axios.post(`${API_BASE_URL}/registrations/send-qr-bulk`);
+      const { sent = 0, skipped = 0, failed = 0 } = res.data || {};
+      Alert.alert('QR emails', `Sent: ${sent}\nSkipped (no email/phone): ${skipped}\nFailed: ${failed}`);
+    } catch (e) {
+      const msg = e?.response?.data?.error || e.message || 'Failed to send emails.';
+      Alert.alert(
+        'Email failed',
+        /not configured/i.test(msg)
+          ? 'Email is not set up yet. Configure SMTP_HOST, SMTP_USER and SMTP_PASS on the backend.'
+          : msg
+      );
+    } finally {
+      setEmailingQr(false);
+    }
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -427,9 +501,27 @@ export const Registrations = () => {
           <Text variant="headlineMedium" style={styles.title}>Registrations</Text>
           <Text variant="bodyMedium" style={styles.subtitle}>Review and approve new registration requests.</Text>
         </View>
-        <Button 
-          mode="contained" 
-          icon="account-plus" 
+        <Button
+          mode="outlined"
+          icon="email-fast"
+          onPress={handleEmailQrToAll}
+          loading={emailingQr}
+          disabled={emailingQr}
+          style={[styles.addButton, { marginRight: 8 }]}
+        >
+          Email QR to All
+        </Button>
+        <Button
+          mode="outlined"
+          icon="qrcode"
+          onPress={handlePrintQrCards}
+          style={[styles.addButton, { marginRight: 8 }]}
+        >
+          Print QR Cards
+        </Button>
+        <Button
+          mode="contained"
+          icon="account-plus"
           onPress={() => { resetForm(); setIsModalVisible(true); }}
           style={styles.addButton}
         >
@@ -771,6 +863,34 @@ export const Registrations = () => {
                         outlineStyle={{ borderRadius: 12, borderColor: colors.primary }}
                       />
                     )}
+                    {isViewing && formData.registrationNumber ? (
+                      <View style={{ alignItems: 'center', marginBottom: 16, padding: 16, backgroundColor: colors.indigo50, borderRadius: 12 }}>
+                        <Text variant="labelMedium" style={{ color: colors.primary, fontWeight: 'bold', marginBottom: 4 }}>
+                          Renter Notify QR
+                        </Text>
+                        <Text variant="bodySmall" style={{ color: colors.slate400, textAlign: 'center', marginBottom: 12 }}>
+                          The renter scans this in the Renter Notify app to set up meal-ticket alerts — no typing needed.
+                        </Text>
+                        <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 24 }}>
+                          {formData.parentPhone ? (
+                            <View style={{ alignItems: 'center' }}>
+                              <View style={{ backgroundColor: '#fff', padding: 10, borderRadius: 8 }}>
+                                <QRCode value={JSON.stringify({ registrationNumber: formData.registrationNumber, phone: formData.parentPhone })} size={140} />
+                              </View>
+                              <Text variant="labelSmall" style={{ color: colors.primary, marginTop: 6, fontWeight: 'bold' }}>Parent</Text>
+                            </View>
+                          ) : null}
+                          {formData.studentPhone && formData.studentPhone !== formData.parentPhone ? (
+                            <View style={{ alignItems: 'center' }}>
+                              <View style={{ backgroundColor: '#fff', padding: 10, borderRadius: 8 }}>
+                                <QRCode value={JSON.stringify({ registrationNumber: formData.registrationNumber, phone: formData.studentPhone })} size={140} />
+                              </View>
+                              <Text variant="labelSmall" style={{ color: colors.primary, marginTop: 6, fontWeight: 'bold' }}>Student</Text>
+                            </View>
+                          ) : null}
+                        </View>
+                      </View>
+                    ) : null}
                     <TextInput
                       label="Email Address *"
                       value={formData.email}

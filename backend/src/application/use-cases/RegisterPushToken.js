@@ -12,12 +12,17 @@ class RegisterPushToken {
     this.registrationRepository = registrationRepository;
   }
 
-  // Compare phone numbers ignoring '+', spaces and other formatting.
+  // Compare phone numbers tolerant of formatting and country-code/leading-zero
+  // differences. PH numbers arrive as 09171234567, +639171234567 or 639171234567;
+  // all share the same trailing 10 digits, so we compare those.
   _phoneMatches(a, b) {
-    const norm = (p) => (p || '').replace(/\D/g, '');
-    const na = norm(a);
-    const nb = norm(b);
-    return na.length > 0 && na === nb;
+    const digits = (p) => (p || '').replace(/\D/g, '');
+    const da = digits(a);
+    const db = digits(b);
+    if (!da || !db) return false;
+    if (da === db) return true;
+    const tail = (d) => d.slice(-10);
+    return tail(da).length === 10 && tail(da) === tail(db);
   }
 
   async execute({ registrationNumber, phone, expoToken, platform }) {

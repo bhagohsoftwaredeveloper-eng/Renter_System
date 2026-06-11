@@ -85,6 +85,8 @@ const createAuditLogRoutes = require('./src/interfaces/routes/auditLogRoutes');
 const PushController = require('./src/interfaces/controllers/PushController');
 const createPushRoutes = require('./src/interfaces/routes/pushRoutes');
 const createApiKeyAuth = require('./src/infrastructure/middleware/apiKeyAuth');
+const EmailService = require('./src/infrastructure/services/EmailService');
+const RegistrationQrController = require('./src/interfaces/controllers/RegistrationQrController');
 const GetReportSummary = require('./src/application/use-cases/GetReportSummary');
 const ReportController = require('./src/interfaces/controllers/ReportController');
 const createReportRoutes = require('./src/interfaces/routes/reportRoutes');
@@ -166,6 +168,8 @@ const auditLogController = new AuditLogController(getAuditLogs, createAuditLog);
 const reportController = new ReportController(getReportSummary);
 const systemController = new SystemController(resetData, exportDataExcel, exportDataSQL, systemSettingsRepository);
 const pushController = new PushController(registerPushToken, pushTokenRepository);
+const emailService = new EmailService();
+const registrationQrController = new RegistrationQrController(registrationRepository, emailService);
 
 // Auth: admin/terminal routes require API_KEY; the mobile app's push routes
 // require the lower-trust MOBILE_API_KEY. Both are no-ops until their env var
@@ -174,7 +178,7 @@ const adminAuth = createApiKeyAuth('API_KEY');
 const mobileAuth = createApiKeyAuth('MOBILE_API_KEY');
 
 // Routes
-app.use('/api/registrations', adminAuth, createRegistrationRoutes(registrationController));
+app.use('/api/registrations', adminAuth, createRegistrationRoutes(registrationController, registrationQrController));
 app.use('/api/users', adminAuth, createUserRoutes(userController));
 app.use('/api/meal-tickets', adminAuth, createMealTicketRoutes(mealTicketController));
 app.use('/api/access-logs', adminAuth, createAccessLogRoutes(accessLogController));

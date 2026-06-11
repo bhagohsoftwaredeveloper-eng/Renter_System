@@ -12,16 +12,22 @@ import {
 import { getExpoPushToken } from '../notifications';
 import { registerPushToken } from '../api';
 import { saveSession } from '../storage';
+import QrScanner from './QrScanner';
 
 export default function LoginScreen({ onLogin }) {
   const [registrationNumber, setRegistrationNumber] = useState('');
   const [phone, setPhone] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [scanning, setScanning] = useState(false);
 
-  const handleSubmit = async () => {
+  // Registers this device for push using the given registration + phone. Both the
+  // manual form and the QR scanner funnel through here.
+  const submit = async (reg, ph) => {
     setError('');
-    if (!registrationNumber.trim() || !phone.trim()) {
+    const regNo = String(reg || '').trim();
+    const phoneNo = String(ph || '').trim();
+    if (!regNo || !phoneNo) {
       setError('Enter your registration number and phone.');
       return;
     }
@@ -30,8 +36,8 @@ export default function LoginScreen({ onLogin }) {
     try {
       const expoToken = await getExpoPushToken();
       const result = await registerPushToken({
-        registrationNumber: registrationNumber.trim(),
-        phone: phone.trim(),
+        registrationNumber: regNo,
+        phone: phoneNo,
         expoToken,
         platform: Platform.OS,
       });
@@ -51,6 +57,38 @@ export default function LoginScreen({ onLogin }) {
     }
   };
 
+  const handleSubmit = () => submit(registrationNumber, phone);
+
+  // Parse a scanned QR payload. Accepts JSON {registrationNumber, phone} (or short
+  // {r,p}) and a "reg|phone" fallback, then auto-submits.
+  const handleScanned = (raw) => {
+    setScanning(false);
+    let reg = '';
+    let ph = '';
+    try {
+      const parsed = JSON.parse(raw);
+      reg = String(parsed.registrationNumber ?? parsed.r ?? '');
+      ph = String(parsed.phone ?? parsed.p ?? '');
+    } catch {
+      const parts = String(raw).split(/[|,;]/);
+      if (parts.length >= 2) {
+        reg = parts[0];
+        ph = parts[1];
+      }
+    }
+    if (!reg || !ph) {
+      setError('That QR code is not a valid Renter Notify code. Enter your details manually.');
+      return;
+    }
+    setRegistrationNumber(reg);
+    setPhone(ph);
+    submit(reg, ph);
+  };
+
+  if (scanning) {
+    return <QrScanner onScan={handleScanned} onClose={() => setScanning(false)} />;
+  }
+
   return (
     <KeyboardAvoidingView
       style={styles.container}
@@ -61,6 +99,20 @@ export default function LoginScreen({ onLogin }) {
         <Text style={styles.subtitle}>
           Sign in to get meal-ticket alerts on this phone.
         </Text>
+
+        <TouchableOpacity
+          style={[styles.scanButton, loading && styles.buttonDisabled]}
+          onPress={() => setScanning(true)}
+          disabled={loading}
+        >
+          <Text style={styles.scanButtonText}>📷  Scan QR Code</Text>
+        </TouchableOpacity>
+
+        <View style={styles.dividerRow}>
+          <View style={styles.divider} />
+          <Text style={styles.dividerText}>or enter manually</Text>
+          <View style={styles.divider} />
+        </View>
 
         <Text style={styles.label}>Registration Number</Text>
         <TextInput
@@ -128,6 +180,16 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     color: '#0F172A',
   },
+  scanButton: {
+    backgroundColor: '#0F766E',
+    borderRadius: 10,
+    paddingVertical: 16,
+    alignItems: 'center',
+  },
+  scanButtonText: { color: '#fff', fontSize: 17, fontWeight: '700' },
+  dividerRow: { flexDirection: 'row', alignItems: 'center', marginVertical: 18 },
+  divider: { flex: 1, height: 1, backgroundColor: '#E2E8F0' },
+  dividerText: { marginHorizontal: 12, color: '#94A3B8', fontSize: 12 },
   button: {
     backgroundColor: '#0F766E',
     borderRadius: 10,
