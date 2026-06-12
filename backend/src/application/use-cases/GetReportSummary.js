@@ -1,13 +1,9 @@
 const { loadWindows, getNearestMealPeriod } = require('../../shared/mealPeriods');
 
-// Local YYYY-MM-DD for a Date (uses the server's local timezone, matching how
-// node-postgres hands back `timestamp` columns).
-const localDateOf = (d) => {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
-};
+// Philippine (Asia/Manila) calendar date for a Date. The server runs in UTC
+// (Railway), so report buckets/times must use PH wall-clock, not server-local.
+const PH_TZ = 'Asia/Manila';
+const localDateOf = (d) => d.toLocaleDateString('en-CA', { timeZone: PH_TZ });
 
 class GetReportSummary {
   constructor(registrationRepository, accessLogRepository, mealTicketRepository, systemSettingsRepository) {
@@ -30,7 +26,7 @@ class GetReportSummary {
 
     // Resolve the target day. Accepts 'YYYY-MM-DD'; falls back to today if missing/invalid.
     const isValidDate = typeof dateStr === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateStr) && !isNaN(new Date(`${dateStr}T00:00:00`).getTime());
-    const reportDate = isValidDate ? dateStr : new Date().toISOString().split('T')[0];
+    const reportDate = isValidDate ? dateStr : new Date().toLocaleDateString('en-CA', { timeZone: PH_TZ });
 
     const dayLogs = accessLogs.filter(log => log.date === reportDate);
     const successfulAccessToday = dayLogs.filter(log => log.status === 'Success').length;
@@ -67,7 +63,7 @@ class GetReportSummary {
         const regById = new Map();
         for (const r of registrations) regById.set(r.id, r);
 
-        const fmtTime = (d) => d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+        const fmtTime = (d) => d.toLocaleTimeString('en-US', { timeZone: PH_TZ, hour: '2-digit', minute: '2-digit', hour12: true });
 
         // Dedupe per student per period, keeping the earliest ticket of the day.
         const byPeriod = { Breakfast: new Map(), Lunch: new Map(), Dinner: new Map() };
