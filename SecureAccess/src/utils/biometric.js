@@ -54,11 +54,19 @@ export const BiometricService = {
    * Start a capture operation
    * @returns {Promise<{template: string, status: string}>}
    */
-  capture: async () => {
-    // 1. Try .NET Bridge first — URL is configurable per terminal
+  capture: async (options = {}) => {
+    const { bridgeOnly = false } = options;
+    // 1. Try .NET Bridge first — URL is configurable per terminal.
+    // IMPORTANT: when the bridge is REACHABLE it is the sole owner of the reader
+    // (it opens it EXCLUSIVE). A bridge timeout/error must NOT fall through to the
+    // HID Web SDK below — that would have two clients fighting over the same
+    // reader and wedge the hardware (0x8000ffff). We only fall back to the Web
+    // SDK when the bridge is genuinely unreachable (fetch throws).
+    let bridgeReachable = false;
     try {
       console.log(`Initiating capture via .NET Bridge at ${BRIDGE_BASE_URL}...`);
       const response = await fetch(`${BRIDGE_BASE_URL}/capture`);
+      bridgeReachable = true;
       if (response.ok) {
         const data = await response.json();
         if (data.status === 'SUCCESS') {
@@ -66,11 +74,21 @@ export const BiometricService = {
         }
         throw new Error(data.detail || 'Capture failed');
       }
+      // Bridge responded but not OK (e.g. 500 = 5s timeout / no finger). Surface
+      // its message; the terminal treats "timed out" as "no finger yet".
+      let detail = 'Capture timed out or no data received.';
+      try { const p = await response.json(); detail = p.detail || p.title || detail; } catch (_) {}
+      throw new Error(detail);
     } catch (e) {
-      console.warn('.NET Bridge capture failed or not found. Trying HID Web SDK fallback...', e);
+      // If the bridge answered (even an error), it owns the reader — propagate,
+      // never use the Web SDK fallback.
+      if (bridgeReachable || bridgeOnly) {
+        throw e;
+      }
+      console.warn('.NET Bridge unreachable. Trying HID Web SDK fallback...', e);
     }
 
-    // 2. Fallback to HID Web SDK
+    // 2. Fallback to HID Web SDK (only when the bridge is truly unreachable)
     const reader = getReader();
     // ... rest of the original capture logic ...
     

@@ -145,7 +145,9 @@ export const BiometricTerminal = ({ onExit, registrationId = null }) => {
       }
 
       console.log(`Initiating SDK capture (${isSilent ? 'Silent' : 'Active'})...`);
-      const captureResult = await BiometricService.capture();
+      // Idle/silent scanning is bridge-only: never let the Web SDK fight the
+      // bridge for the reader during the continuous listen loop.
+      const captureResult = await BiometricService.capture({ bridgeOnly: isSilent });
       
       if (captureResult.status === 'SUCCESS') {
         setStatus('SCANNING'); 
