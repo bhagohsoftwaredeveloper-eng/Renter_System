@@ -16,10 +16,13 @@ class CreateAccessLog {
   }
 
   async execute(logData) {
-    // Generate current date and time if not provided
+    // Generate current date and time if not provided. The server runs in UTC
+    // (Railway), so format in Philippine time (Asia/Manila, UTC+8) — otherwise
+    // the notification shows a time 8 hours behind.
     const now = new Date();
-    const date = logData.date || now.toISOString().split('T')[0];
-    const time = logData.time || now.toLocaleTimeString('en-US', { hour12: true, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const PH_TZ = 'Asia/Manila';
+    const date = logData.date || now.toLocaleDateString('en-CA', { timeZone: PH_TZ });
+    const time = logData.time || now.toLocaleTimeString('en-US', { timeZone: PH_TZ, hour12: true, hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
     const newLogData = {
       ...logData,
