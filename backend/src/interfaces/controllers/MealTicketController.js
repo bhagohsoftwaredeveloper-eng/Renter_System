@@ -1,7 +1,28 @@
 class MealTicketController {
-  constructor(generateMealTicket, getMealTicketsByRegistration) {
+  constructor(generateMealTicket, getMealTicketsByRegistration, registrationRepository) {
     this.generateMealTicket = generateMealTicket;
     this.getMealTicketsByRegistration = getMealTicketsByRegistration;
+    this.registrationRepository = registrationRepository;
+  }
+
+  // Lightweight list of enrolled fingerprints for client-side (local bridge)
+  // matching. Guarded by the terminal's x-api-key only (no admin role needed),
+  // so a kiosk terminal can identify renters without an admin login.
+  async biometricCandidates(req, res) {
+    try {
+      const all = await this.registrationRepository.getAll();
+      const candidates = (all || [])
+        .filter((r) => r.hasFingerprint && r.biometricTemplate && r.biometricTemplate.length > 50)
+        .map((r) => ({
+          id: r.id,
+          name: r.name || `${r.firstName || ''} ${r.lastName || ''}`.trim() || `Renter #${r.id}`,
+          biometricTemplate: r.biometricTemplate,
+        }));
+      res.json(candidates);
+    } catch (err) {
+      console.error('[MealTicketController] biometricCandidates error:', err);
+      res.status(500).json({ error: 'Failed to load biometric candidates' });
+    }
   }
 
   async generate(req, res) {

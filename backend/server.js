@@ -162,7 +162,7 @@ const registrationController = new RegistrationController(
 );
 
 const userController = new UserController(getUsers, createUser, updateUser, deleteUser, loginUser);
-const mealTicketController = new MealTicketController(generateMealTicket, getMealTicketsByRegistration);
+const mealTicketController = new MealTicketController(generateMealTicket, getMealTicketsByRegistration, registrationRepository);
 const accessLogController = new AccessLogController(getAccessLogs, createAccessLog);
 const auditLogController = new AuditLogController(getAuditLogs, createAuditLog);
 const reportController = new ReportController(getReportSummary);
