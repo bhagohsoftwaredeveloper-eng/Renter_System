@@ -404,18 +404,48 @@ export const Registrations = () => {
         // One renter = one biometric: make sure this fingerprint isn't already
         // enrolled to someone else before accepting the capture. excludeId lets a
         // renter re-enroll their OWN print without being flagged as a duplicate.
-        const dupRes = await axios.post(`${API_BASE_URL}/registrations/check-biometric`, {
-          biometricTemplate: captureResult.template,
-          excludeId: editId || null
+        //
+        // FMD matching runs on the LOCAL bridge (the cloud backend can't reach
+        // it). The registration list already carries each template, so we match
+        // client-side and only the result touches the cloud.
+        const exclude = String(editId || '');
+        const candidates = (data || []).filter((r) => {
+          const tpl = r.biometricTemplate || r.biometric_template;
+          const hasFp = r.hasFingerprint || r.has_fingerprint;
+          return hasFp && tpl && tpl.length > 50 && String(r.id) !== exclude;
         });
 
-        if (dupRes.data && dupRes.data.exists) {
-          const who = dupRes.data.registration?.name || 'another renter';
-          showSnackbar(`This biometric is already registered to ${who}. One renter can only have one biometric.`, 'error');
-          setFingerprintProgress(0);
-          setScanCount(0);
-          setIsFingerprinting(false);
-          return; // do NOT accept the capture
+        if (candidates.length > 0) {
+          let matched = null;
+          try {
+            const idRes = await fetch(`${BRIDGE_BASE_URL}/identify`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                probe: captureResult.template,
+                candidates: candidates.map((c) => c.biometricTemplate || c.biometric_template),
+              }),
+            });
+            if (idRes.ok) {
+              const d = await idRes.json();
+              if (d.status === 'SUCCESS' && d.matchedIndex !== undefined && d.matchedIndex !== -1) {
+                matched = candidates[d.matchedIndex];
+              }
+            }
+          } catch (idErr) {
+            console.warn('Local biometric identify failed:', idErr.message);
+          }
+
+          if (matched) {
+            const who = matched.name
+              || `${matched.firstName || matched.first_name || ''} ${matched.lastName || matched.last_name || ''}`.trim()
+              || `Renter #${matched.id}`;
+            showSnackbar(`This biometric is already registered to ${who}. One renter can only have one biometric.`, 'error');
+            setFingerprintProgress(0);
+            setScanCount(0);
+            setIsFingerprinting(false);
+            return; // do NOT accept the capture
+          }
         }
 
         setFingerprintProgress(100);
