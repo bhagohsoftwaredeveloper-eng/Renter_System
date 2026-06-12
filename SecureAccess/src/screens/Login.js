@@ -10,8 +10,10 @@ const { width } = Dimensions.get('window');
 const isWeb = Platform.OS === 'web';
 const isLargeScreen = width > 768;
 
-import { API_BASE_URL } from '../utils/api';
+import { API_BASE_URL, setApiKey, getStoredApiKey } from '../utils/api';
 import { createAuditLog } from '../utils/audit';
+
+const isCloud = API_BASE_URL.startsWith('https://');
 
 export function Login() {
   const theme = useTheme();
@@ -21,6 +23,7 @@ export function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [apiKey, setApiKeyState] = useState(getStoredApiKey());
 
   const handleLogin = async () => {
     if (!username || !password) {
@@ -32,6 +35,8 @@ export function Login() {
     setError('');
 
     try {
+      // Apply the API key (cloud auth) before the request so it's sent as x-api-key.
+      if (Platform.OS === 'web') setApiKey(apiKey);
       // Using centralized API URL
       const response = await axios.post(`${API_BASE_URL}/users/login`, {
         username,
@@ -116,6 +121,30 @@ export function Login() {
                   returnKeyType="go"
                 />
               </View>
+
+              {isCloud && Platform.OS === 'web' ? (
+                <View style={styles.inputGroup}>
+                  <TextInput
+                    label="Backend API Key (cloud)"
+                    value={apiKey}
+                    onChangeText={setApiKeyState}
+                    mode="outlined"
+                    outlineColor={colors.slate300}
+                    activeOutlineColor={colors.primary}
+                    secureTextEntry={!showPassword}
+                    placeholder="Paste the backend API_KEY"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    left={<TextInput.Icon icon={() => <Lock size={20} color={colors.slate500} />} />}
+                    style={styles.input}
+                    onSubmitEditing={handleLogin}
+                    returnKeyType="go"
+                  />
+                  <HelperText type="info" visible={true} style={{ fontSize: 12 }}>
+                    Required when connecting to the cloud server. Ask your administrator.
+                  </HelperText>
+                </View>
+              ) : null}
 
               {error ? (
                 <HelperText type="error" visible={true} style={styles.errorText}>

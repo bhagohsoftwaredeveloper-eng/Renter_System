@@ -11,23 +11,29 @@ import axios from 'axios';
  *   API_KEY     — the backend's API_KEY (only needed when the backend is public/cloud)
  */
 
-const LOCAL_HOST = 'localhost';
-const EMULATOR_HOST = '10.0.2.2'; // Standard Android emulator loopback to host
+// Default backend: the production cloud (Railway). A LAN/local deployment can
+// override this per-terminal by saving BACKEND_URL in localStorage (Settings →
+// Network Configuration), e.g. http://192.168.1.100:5005/api.
+const CLOUD_API = 'https://rentersystem-production.up.railway.app/api';
 
 const getBaseUrl = () => {
   if (Platform.OS === 'web') {
     try {
       const savedUrl = localStorage.getItem('BACKEND_URL');
-      // Guard: reject any URL that incorrectly points at the Biometric Bridge port
-      if (savedUrl && !savedUrl.includes(':5003')) {
+      // Migration: the old build defaulted to localhost:5005. Treat that exact
+      // value as "no real override" so this cloud-default build takes effect.
+      if (savedUrl && /\/\/(localhost|127\.0\.0\.1):5005\//.test(savedUrl)) {
+        localStorage.removeItem('BACKEND_URL');
+      } else if (savedUrl && !savedUrl.includes(':5003')) {
+        // Guard: reject any URL that incorrectly points at the Biometric Bridge port
         return savedUrl;
       }
     } catch (e) {
       console.warn('Failed to read BACKEND_URL from localStorage', e);
     }
-    return `http://${LOCAL_HOST}:5005/api`;
+    return CLOUD_API;
   }
-  return `http://${EMULATOR_HOST}:5005/api`;
+  return CLOUD_API;
 };
 
 /**
@@ -66,6 +72,27 @@ const applyApiKey = () => {
 };
 
 applyApiKey();
+
+/**
+ * Persists the backend API key and applies it immediately to all axios requests,
+ * so login (and everything after) works against the cloud without an app restart.
+ * Pass an empty string to clear it (LAN deployments where auth is off).
+ */
+export const setApiKey = (key) => {
+  const trimmed = (key || '').trim();
+  try {
+    if (trimmed) localStorage.setItem('API_KEY', trimmed);
+    else localStorage.removeItem('API_KEY');
+  } catch (e) {
+    console.warn('Failed to persist API_KEY', e);
+  }
+  if (trimmed) axios.defaults.headers.common['x-api-key'] = trimmed;
+  else delete axios.defaults.headers.common['x-api-key'];
+};
+
+export const getStoredApiKey = () => {
+  try { return localStorage.getItem('API_KEY') || ''; } catch (e) { return ''; }
+};
 
 export const API_BASE_URL = getBaseUrl();
 export const BRIDGE_BASE_URL = getBridgeUrl();

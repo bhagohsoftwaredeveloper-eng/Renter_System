@@ -2636,7 +2636,7 @@ export const Configuration = () => {
   useEffect(() => {
     if (Platform.OS === 'web') {
       const savedUrl = localStorage.getItem('BACKEND_URL');
-      setBackendUrl(savedUrl || 'http://localhost:5005/api');
+      setBackendUrl(savedUrl || 'https://rentersystem-production.up.railway.app/api');
       const savedKey = localStorage.getItem('API_KEY');
       if (savedKey) setApiKey(savedKey);
       const savedBridge = localStorage.getItem('BRIDGE_URL');
