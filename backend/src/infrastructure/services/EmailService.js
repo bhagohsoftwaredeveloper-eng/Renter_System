@@ -11,9 +11,9 @@ const QRCode = require('qrcode');
  */
 class EmailService {
   constructor() {
-    console.log(`[EmailService] SMTP_HOST=${process.env.SMTP_HOST || '(not set)'} USER=${process.env.SMTP_USER || '(not set)'} PASS=${process.env.SMTP_PASS ? '(set)' : '(not set)'}`);
     this.from = process.env.SMTP_FROM || process.env.SMTP_USER || null;
     this.enabled = !!(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS);
+    console.log(`[EmailService] ${this.enabled ? 'enabled' : 'DISABLED (SMTP_* not fully set)'}`);
     if (this.enabled) {
       const port = Number(process.env.SMTP_PORT) || 587;
       this.transport = nodemailer.createTransport({
@@ -27,10 +27,7 @@ class EmailService {
 
   _require() {
     if (!this.enabled) {
-      const host = process.env.SMTP_HOST || '(unset)';
-      const user = process.env.SMTP_USER || '(unset)';
-      const pass = process.env.SMTP_PASS ? '(set)' : '(unset)';
-      const err = new Error(`Email not configured. SMTP_HOST=${host} SMTP_USER=${user} SMTP_PASS=${pass}`);
+      const err = new Error('Email is not configured. Set SMTP_HOST, SMTP_USER and SMTP_PASS.');
       err.statusCode = 503;
       throw err;
     }

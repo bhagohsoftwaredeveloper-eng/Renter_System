@@ -2606,6 +2606,7 @@ export const Configuration = () => {
   const { userRole } = usePermissions();
   const { showSnackbar } = useSnackbar();
   const [backendUrl, setBackendUrl] = useState('');
+  const [apiKey, setApiKey] = useState('');
   const [bridgeUrl, setBridgeUrl] = useState('');
   const [isTesting, setIsTesting] = useState(false);
   const [isBridgeTesting, setIsBridgeTesting] = useState(false);
@@ -2636,6 +2637,8 @@ export const Configuration = () => {
     if (Platform.OS === 'web') {
       const savedUrl = localStorage.getItem('BACKEND_URL');
       setBackendUrl(savedUrl || 'http://localhost:5005/api');
+      const savedKey = localStorage.getItem('API_KEY');
+      if (savedKey) setApiKey(savedKey);
       const savedBridge = localStorage.getItem('BRIDGE_URL');
       setBridgeUrl(savedBridge || 'http://localhost:5003');
       const savedPrinter = localStorage.getItem('SELECTED_PRINTER');
@@ -2727,6 +2730,11 @@ export const Configuration = () => {
     if (Platform.OS === 'web') {
       localStorage.setItem('BACKEND_URL', backendUrl);
       localStorage.setItem('BRIDGE_URL', bridgeUrl);
+      if (apiKey && apiKey.trim().length > 0) {
+        localStorage.setItem('API_KEY', apiKey.trim());
+      } else {
+        localStorage.removeItem('API_KEY');
+      }
       showSnackbar('Network settings saved. Restart the app to apply everywhere.', 'success');
     }
   };
@@ -2941,6 +2949,29 @@ export const Configuration = () => {
                 </View>
                 <Text variant="bodySmall" style={{ color: colors.slate500, marginTop: 4 }}>
                   Central server IP for all terminals. For LAN deployments, use the main server's IP (e.g. http://192.168.1.100:5005/api).
+                  For cloud, use the Railway URL (e.g. https://rentersystem-production.up.railway.app/api).
+                </Text>
+              </View>
+
+              <Divider />
+
+              {/* Backend API Key (required for cloud/public deployments) */}
+              <View style={styles.inputGroup}>
+                <Text variant="labelMedium" style={styles.inputLabel}>Backend API Key</Text>
+                <TextInput
+                  value={apiKey}
+                  onChangeText={setApiKey}
+                  mode="outlined"
+                  placeholder="Required when the backend is on the cloud (Railway)"
+                  secureTextEntry
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  outlineStyle={{ borderRadius: 12 }}
+                  left={<TextInput.Icon icon="key-variant" color={colors.slate400} />}
+                  style={{ backgroundColor: colors.white }}
+                />
+                <Text variant="bodySmall" style={{ color: colors.slate500, marginTop: 4 }}>
+                  The backend's API_KEY. Sent as the x-api-key header. Leave blank for local LAN deployments (auth is off there).
                 </Text>
               </View>
 
