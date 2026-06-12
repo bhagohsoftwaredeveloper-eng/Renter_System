@@ -85,6 +85,8 @@ const MOCK_PERMISSIONS = [
 export const Registrations = () => {
   const [data, setData] = useState([]);
   const [emailingQr, setEmailingQr] = useState(false);
+  const [emailConfirmVisible, setEmailConfirmVisible] = useState(false);
+  const [emailResult, setEmailResult] = useState(null); // { sent, skipped, failed, errors } or { error }
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [viewType, setViewType] = useState('table');
@@ -504,29 +506,35 @@ export const Registrations = () => {
     }
   };
 
+  // How many renters in the current view are eligible (have an email).
+  const emailEligibleCount = (filteredData || []).filter(
+    (r) => (r.email || '').trim().length > 0
+  ).length;
+
   // Emails every renter (with an email + phone) their Renter Notify QR code.
-  const handleEmailQrToAll = async () => {
-    if (typeof window !== 'undefined' && window.confirm &&
-        !window.confirm('Email the Renter Notify QR code to all renters who have an email address?')) {
-      return;
-    }
+  // Opens a styled confirmation dialog first, then a result dialog.
+  const handleEmailQrToAll = () => setEmailConfirmVisible(true);
+
+  const confirmEmailQrToAll = async () => {
+    setEmailConfirmVisible(false);
     try {
       setEmailingQr(true);
       const res = await axios.post(`${API_BASE_URL}/registrations/send-qr-bulk`, {}, {
         headers: { 'x-user-role': userRole },
       });
       const { sent = 0, skipped = 0, failed = 0, errors = [] } = res.data || {};
-      const msg = `QR emails sent: ${sent} | Skipped (no email/phone): ${skipped} | Failed: ${failed}`;
-      showSnackbar(msg, failed > 0 ? 'error' : 'success');
-      const errDetail = errors.length > 0 ? '\n\nErrors:\n' + errors.map(e => `• ${e.email}: ${e.error}`).join('\n') : '';
-      if (typeof window !== 'undefined') window.alert(`QR Emails Done\n\nSent: ${sent}\nSkipped (no email/phone): ${skipped}\nFailed: ${failed}${errDetail}`);
+      setEmailResult({ sent, skipped, failed, errors });
+      showSnackbar(
+        `QR emails — Sent: ${sent}, Skipped: ${skipped}, Failed: ${failed}`,
+        failed > 0 ? 'error' : 'success'
+      );
     } catch (e) {
       const msg = e?.response?.data?.error || e.message || 'Failed to send emails.';
       const friendly = /not configured/i.test(msg)
         ? 'Email is not set up yet. Configure SMTP on the backend.'
         : msg;
+      setEmailResult({ error: friendly });
       showSnackbar(friendly, 'error');
-      if (typeof window !== 'undefined') window.alert('Email failed: ' + friendly);
     } finally {
       setEmailingQr(false);
     }
@@ -1134,6 +1142,106 @@ export const Registrations = () => {
               style={{ borderRadius: 10, minWidth: 100 }}
             >
               OK
+            </Button>
+          </Dialog.Actions>
+        </Dialog>
+
+        {/* Email QR — confirmation */}
+        <Dialog
+          visible={emailConfirmVisible}
+          onDismiss={() => setEmailConfirmVisible(false)}
+          style={{ borderRadius: 16, maxWidth: 460, alignSelf: 'center', width: '100%' }}
+        >
+          <Dialog.Icon icon="email-fast-outline" color={colors.primary} />
+          <Dialog.Title style={{ textAlign: 'center' }}>Email QR Codes</Dialog.Title>
+          <Dialog.Content>
+            <Text variant="bodyMedium" style={{ textAlign: 'center', color: colors.slate600 }}>
+              Send the Renter Notify QR code by email to{' '}
+              <Text style={{ fontWeight: 'bold', color: colors.primary }}>{emailEligibleCount}</Text>
+              {' '}renter{emailEligibleCount === 1 ? '' : 's'} who have an email address in the current view.
+            </Text>
+            <Text variant="bodySmall" style={{ textAlign: 'center', color: colors.slate500, marginTop: 8 }}>
+              Renters without an email are skipped automatically.
+            </Text>
+          </Dialog.Content>
+          <Dialog.Actions style={{ justifyContent: 'center', gap: 8, paddingBottom: 16 }}>
+            <Button
+              mode="outlined"
+              onPress={() => setEmailConfirmVisible(false)}
+              style={{ borderRadius: 10, minWidth: 100 }}
+            >
+              Cancel
+            </Button>
+            <Button
+              mode="contained"
+              icon="email-fast"
+              buttonColor={colors.primary}
+              onPress={confirmEmailQrToAll}
+              style={{ borderRadius: 10, minWidth: 120 }}
+            >
+              Send Emails
+            </Button>
+          </Dialog.Actions>
+        </Dialog>
+
+        {/* Email QR — result */}
+        <Dialog
+          visible={!!emailResult}
+          onDismiss={() => setEmailResult(null)}
+          style={{ borderRadius: 16, maxWidth: 480, alignSelf: 'center', width: '100%' }}
+        >
+          <Dialog.Icon
+            icon={emailResult?.error ? 'alert-circle-outline' : (emailResult?.failed > 0 ? 'alert-outline' : 'check-circle-outline')}
+            color={emailResult?.error || emailResult?.failed > 0 ? '#F43F5E' : '#10B981'}
+          />
+          <Dialog.Title style={{ textAlign: 'center' }}>
+            {emailResult?.error ? 'Email Failed' : 'QR Emails Sent'}
+          </Dialog.Title>
+          <Dialog.Content>
+            {emailResult?.error ? (
+              <Text variant="bodyMedium" style={{ textAlign: 'center', color: colors.slate600 }}>
+                {emailResult.error}
+              </Text>
+            ) : (
+              <View style={{ gap: 10 }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 10, flexWrap: 'wrap' }}>
+                  <View style={{ alignItems: 'center', backgroundColor: '#ECFDF5', borderRadius: 12, paddingVertical: 12, paddingHorizontal: 18, minWidth: 96 }}>
+                    <Text style={{ fontSize: 24, fontWeight: '900', color: '#059669' }}>{emailResult?.sent ?? 0}</Text>
+                    <Text style={{ fontSize: 12, color: colors.slate500 }}>Sent</Text>
+                  </View>
+                  <View style={{ alignItems: 'center', backgroundColor: '#FFFBEB', borderRadius: 12, paddingVertical: 12, paddingHorizontal: 18, minWidth: 96 }}>
+                    <Text style={{ fontSize: 24, fontWeight: '900', color: '#D97706' }}>{emailResult?.skipped ?? 0}</Text>
+                    <Text style={{ fontSize: 12, color: colors.slate500 }}>Skipped</Text>
+                  </View>
+                  <View style={{ alignItems: 'center', backgroundColor: emailResult?.failed > 0 ? '#FEF2F2' : '#F8FAFC', borderRadius: 12, paddingVertical: 12, paddingHorizontal: 18, minWidth: 96 }}>
+                    <Text style={{ fontSize: 24, fontWeight: '900', color: emailResult?.failed > 0 ? '#DC2626' : colors.slate400 }}>{emailResult?.failed ?? 0}</Text>
+                    <Text style={{ fontSize: 12, color: colors.slate500 }}>Failed</Text>
+                  </View>
+                </View>
+                <Text variant="bodySmall" style={{ textAlign: 'center', color: colors.slate500 }}>
+                  Skipped = no email address on file.
+                </Text>
+                {emailResult?.errors && emailResult.errors.length > 0 ? (
+                  <View style={{ backgroundColor: '#FEF2F2', borderRadius: 12, padding: 12, marginTop: 4 }}>
+                    <Text style={{ fontWeight: '700', color: '#DC2626', marginBottom: 4, fontSize: 13 }}>Failed addresses</Text>
+                    {emailResult.errors.map((er, i) => (
+                      <Text key={i} style={{ color: colors.slate600, fontSize: 12 }}>
+                        • {er.email}: {er.error}
+                      </Text>
+                    ))}
+                  </View>
+                ) : null}
+              </View>
+            )}
+          </Dialog.Content>
+          <Dialog.Actions style={{ justifyContent: 'center', paddingBottom: 16 }}>
+            <Button
+              mode="contained"
+              buttonColor={colors.primary}
+              onPress={() => setEmailResult(null)}
+              style={{ borderRadius: 10, minWidth: 100 }}
+            >
+              Done
             </Button>
           </Dialog.Actions>
         </Dialog>
