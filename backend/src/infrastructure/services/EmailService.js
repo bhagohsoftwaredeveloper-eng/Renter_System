@@ -11,6 +11,7 @@ const QRCode = require('qrcode');
  */
 class EmailService {
   constructor() {
+    console.log(`[EmailService] SMTP_HOST=${process.env.SMTP_HOST || '(not set)'} USER=${process.env.SMTP_USER || '(not set)'} PASS=${process.env.SMTP_PASS ? '(set)' : '(not set)'}`);
     this.from = process.env.SMTP_FROM || process.env.SMTP_USER || null;
     this.enabled = !!(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS);
     if (this.enabled) {
