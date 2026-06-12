@@ -10,11 +10,16 @@ class RegistrationQrController {
   }
 
   _fields(reg) {
+    const parentPhone = reg.parentPhone || reg.parent_phone || null;
+    const studentPhone = reg.studentPhone || reg.student_phone || null;
     return {
       to: reg.email || null,
       name: reg.name || `${reg.firstName || reg.first_name || ''} ${reg.lastName || reg.last_name || ''}`.trim(),
       registrationNumber: reg.registrationNumber || reg.registration_number || null,
-      phone: reg.parentPhone || reg.parent_phone || reg.studentPhone || reg.student_phone || null,
+      parentPhone,
+      studentPhone,
+      // The QR/login phone defaults to the parent's number, falling back to the student's.
+      phone: parentPhone || studentPhone || null,
     };
   }
 

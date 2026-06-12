@@ -34,7 +34,7 @@ class EmailService {
   }
 
   // Emails a renter their QR code (encodes { registrationNumber, phone }).
-  async sendQr({ to, name, registrationNumber, phone }) {
+  async sendQr({ to, name, registrationNumber, phone, parentPhone, studentPhone }) {
     this._require();
     if (!to) {
       const err = new Error('Registration has no email address.');
@@ -48,6 +48,12 @@ class EmailService {
       color: { dark: '#0F766E', light: '#ffffff' },
     });
 
+    // Rows for whichever numbers are on file (parent / student).
+    const phoneRows = [
+      parentPhone ? `<tr><td style="padding:4px 12px 4px 0;color:#64748b;">Parent's number</td><td style="font-weight:700;">${parentPhone}</td></tr>` : '',
+      studentPhone ? `<tr><td style="padding:4px 12px 4px 0;color:#64748b;">Student's number</td><td style="font-weight:700;">${studentPhone}</td></tr>` : '',
+    ].join('');
+
     const html = `
       <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;color:#0F172A;">
         <h2 style="color:#0F766E;margin-bottom:4px;">Renter Notify</h2>
@@ -60,9 +66,14 @@ class EmailService {
         <div style="text-align:center;margin:20px 0;">
           <img src="cid:qr" alt="Your QR code" style="width:240px;height:240px;"/>
         </div>
+        <div style="background:#F8FAFC;border-radius:10px;padding:14px 16px;margin:16px 0;">
+          <table style="font-size:14px;border-collapse:collapse;">
+            <tr><td style="padding:4px 12px 4px 0;color:#64748b;">Registration #</td><td style="font-weight:700;color:#0F766E;">${registrationNumber}</td></tr>
+            ${phoneRows}
+          </table>
+        </div>
         <p style="color:#475569;font-size:13px;">
-          Registration #${registrationNumber}.
-          If scanning doesn't work, you can enter your registration number and phone manually in the app.
+          If scanning doesn't work, open the app and enter your registration number and phone number manually.
         </p>
       </div>`;
 
