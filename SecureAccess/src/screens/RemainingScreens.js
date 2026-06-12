@@ -2775,7 +2775,9 @@ export const Configuration = () => {
       const savedKey = localStorage.getItem('API_KEY');
       if (savedKey) setApiKey(savedKey);
       const savedBridge = localStorage.getItem('BRIDGE_URL');
-      setBridgeUrl(savedBridge || 'http://localhost:5003');
+      // Force IPv4 loopback: "localhost" can resolve to IPv6 (::1) in Electron and
+      // fail, since the bridge only listens on 127.0.0.1.
+      setBridgeUrl((savedBridge || 'http://127.0.0.1:5003').replace(/\/\/localhost(:|\/|$)/i, '//127.0.0.1$1'));
       const savedPrinter = localStorage.getItem('SELECTED_PRINTER');
       if (savedPrinter) setSelectedPrinter(savedPrinter);
     }
@@ -2864,7 +2866,8 @@ export const Configuration = () => {
   const handleSaveConfig = () => {
     if (Platform.OS === 'web') {
       localStorage.setItem('BACKEND_URL', backendUrl);
-      localStorage.setItem('BRIDGE_URL', bridgeUrl);
+      // Normalize localhost -> 127.0.0.1 so the bridge stays reachable in Electron.
+      localStorage.setItem('BRIDGE_URL', (bridgeUrl || '').replace(/\/\/localhost(:|\/|$)/i, '//127.0.0.1$1'));
       if (apiKey && apiKey.trim().length > 0) {
         localStorage.setItem('API_KEY', apiKey.trim());
       } else {

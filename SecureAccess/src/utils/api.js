@@ -40,11 +40,17 @@ const getBaseUrl = () => {
  * configured independently without a rebuild.
  * Default: http://localhost:5003
  */
+// The bridge listens on IPv4 127.0.0.1 only. In Electron/Chromium, fetching
+// "localhost" can resolve to IPv6 (::1) first and fail to connect, so we force
+// the IPv4 literal everywhere the bridge URL is used.
+const forceIpv4Loopback = (url) =>
+  (url || '').replace(/\/\/localhost(:|\/|$)/i, '//127.0.0.1$1');
+
 const getBridgeUrl = () => {
   if (Platform.OS === 'web') {
     try {
       const saved = localStorage.getItem('BRIDGE_URL');
-      if (saved && saved.trim().length > 0) return saved.trim();
+      if (saved && saved.trim().length > 0) return forceIpv4Loopback(saved.trim());
     } catch (e) {
       console.warn('Failed to read BRIDGE_URL from localStorage', e);
     }
