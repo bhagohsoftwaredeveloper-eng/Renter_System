@@ -8,9 +8,10 @@
  * what CreateAccessLog stores on each log row).
  */
 class GetRenterAlerts {
-  constructor(accessLogRepository, registrationRepository) {
+  constructor(accessLogRepository, registrationRepository, systemSettingsRepository) {
     this.accessLogRepository = accessLogRepository;
     this.registrationRepository = registrationRepository;
+    this.systemSettingsRepository = systemSettingsRepository;
   }
 
   // Same lenient phone comparison as RegisterPushToken (compare trailing 10 digits).
@@ -52,13 +53,28 @@ class GetRenterAlerts {
 
     const logs = await this.accessLogRepository.getByRenterName(registration.name, limit);
 
+    // Same configurable notification templates ServeQueue uses for push (see
+    // CreateAccessLog) so the web alerts read identically to the Android app.
+    let titleTemplate = 'Meal Ticket Used';
+    let bodyTemplate = 'Hi! {name} used their {mealType} meal ticket at {time}.';
+    if (this.systemSettingsRepository) {
+      try {
+        titleTemplate = (await this.systemSettingsRepository.get('push_notification_title')) || titleTemplate;
+        bodyTemplate = (await this.systemSettingsRepository.get('push_notification_body')) || bodyTemplate;
+      } catch {
+        // fall back to defaults if settings are unavailable
+      }
+    }
+
     return {
       recipientType,
       registration: {
         id: registration.id,
         name: registration.name,
         registrationNumber: registration.registrationNumber,
+        mealType: registration.mealType || 'Non-Veggie',
       },
+      notification: { titleTemplate, bodyTemplate },
       alerts: logs.map((l) => ({
         id: l.id,
         type: l.type,

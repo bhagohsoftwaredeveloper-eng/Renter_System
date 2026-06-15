@@ -69,6 +69,31 @@
     .toolbar { display: flex; gap: 10px; margin-top: 18px; }
     .toolbar .btn { width: auto; flex: 1; }
     .back-link { display: inline-block; margin-top: 22px; font-size: 13px; color: var(--teal); }
+
+    .scan-btn { display: flex; align-items: center; justify-content: center; gap: 10px; }
+    .divider-row { display: flex; align-items: center; gap: 12px; margin: 18px 0; }
+    .divider-row span { flex: 1; height: 1px; background: var(--border); }
+    .divider-row em { font-style: normal; color: #94a3b8; font-size: 12px; }
+
+    /* Full-screen camera scanner */
+    .scanner {
+      position: fixed; inset: 0; z-index: 50; background: #000;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+    }
+    .scanner video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+    .scan-frame {
+      position: relative; width: min(72vw, 260px); aspect-ratio: 1;
+      border: 3px solid #fff; border-radius: 20px; box-shadow: 0 0 0 9999px rgba(0,0,0,0.45);
+    }
+    .scan-hint {
+      position: relative; color: #fff; font-size: 15px; margin-top: 26px;
+      text-align: center; padding: 0 30px; text-shadow: 0 1px 3px rgba(0,0,0,0.6);
+    }
+    .scan-cancel {
+      position: absolute; bottom: 44px; background: rgba(0,0,0,0.6); color: #fff;
+      border: none; border-radius: 24px; padding: 12px 36px; font-size: 16px;
+      font-weight: 600; cursor: pointer;
+    }
   </style>
 </head>
 <body>
@@ -83,6 +108,18 @@
 
     <!-- Sign-in -->
     <section class="signin-card" id="signinCard">
+      <button class="btn scan-btn" id="scanBtn">
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/>
+          <line x1="3" y1="12" x2="21" y2="12"/>
+        </svg>
+        Scan QR Code
+      </button>
+
+      <div class="divider-row">
+        <span></span><em>or enter manually</em><span></span>
+      </div>
+
       <div class="field">
         <label for="reg">Registration Number</label>
         <input id="reg" inputmode="text" placeholder="e.g. 100245" autocomplete="off" />
@@ -119,6 +156,15 @@
     <a class="back-link" href="/">← Back to download page</a>
   </div>
 
+  <!-- QR scanner overlay -->
+  <div class="scanner" id="scanner" style="display:none;">
+    <video id="scanVideo" playsinline muted></video>
+    <div class="scan-frame"></div>
+    <p class="scan-hint" id="scanHint">Point at your Renter Notify QR code</p>
+    <button class="scan-cancel" id="scanCancel">Cancel</button>
+  </div>
+
+  <script src="/vendor/jsQR.js"></script>
   <script src="/app.js"></script>
 </body>
 </html>
