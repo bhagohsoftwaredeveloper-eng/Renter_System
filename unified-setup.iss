@@ -1,18 +1,21 @@
-; ServeQueue Unified Installer Script (v1.2.0)
-; Bundles Frontend, Backend, and Biometric Bridge
+; ServeQueue Unified Installer Script (v1.3.0)
+; Bundles the Frontend (Electron) + Biometric Bridge only.
+; The Backend + Postgres now run on Railway cloud, so the installer no longer
+; ships a local server.exe or sets up a local database. Configure the cloud URL
+; and API key per terminal in Settings -> Network Configuration after install.
 
 [Setup]
 AppName=ServeQueue
-AppVersion=1.2.0
+AppVersion=1.3.0
 AppPublisher=ServeQueue Team
 DefaultDirName={autopf}\ServeQueue
 DefaultGroupName=ServeQueue
 OutputDir=.
-OutputBaseFilename=ServeQueue_v1.2.0_Setup
+OutputBaseFilename=ServeQueue_v1.3.0_Setup
 Compression=lzma
 SolidCompression=yes
 PrivilegesRequired=admin
-SetupIconFile=SecureAccess\dist\favicon.ico
+SetupIconFile=SecureAccess\assets\serveQueue.ico
 UninstallDisplayIcon={app}\Frontend\ServeQueue.exe
 
 [Languages]
@@ -22,44 +25,25 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
 [Files]
-; 1. Frontend (Electron App)
+; 1. Frontend (Electron App) -- points at the Railway cloud backend by default.
 Source: "SecureAccess\release\win-unpacked\*"; DestDir: "{app}\Frontend"; Flags: ignoreversion recursesubdirs createallsubdirs
 
-; 2. Backend
-Source: "backend\dist\server.exe"; DestDir: "{app}\Backend"; Flags: ignoreversion
-Source: "backend\dist\.env"; DestDir: "{app}\Backend"; Flags: ignoreversion
-Source: "backend\init_db.sql"; DestDir: "{app}\Backend"; Flags: ignoreversion
-Source: "backend\scripts\setup-db.ps1"; DestDir: "{app}\Backend\scripts"; Flags: ignoreversion
-Source: "backend\scripts\install-service.ps1"; DestDir: "{app}\Backend\scripts"; Flags: ignoreversion
-Source: "backend\scripts\uninstall-service.ps1"; DestDir: "{app}\Backend\scripts"; Flags: ignoreversion
-
-; 3. Biometric Bridge
+; 2. Biometric Bridge -- local hardware interface (DigitalPersona SDK). Stays on
+;    the terminal; does fingerprint matching locally and talks to the cloud by id.
 Source: "BiometricBridge\bin\Release\net9.0\win-x64\publish\*"; DestDir: "{app}\Bridge"; Flags: ignoreversion recursesubdirs createallsubdirs
-Source: "BiometricBridge\scripts\install-service.ps1"; DestDir: "{app}\Bridge\scripts"; Flags: ignoreversion
-Source: "BiometricBridge\scripts\uninstall-service.ps1"; DestDir: "{app}\Bridge\scripts"; Flags: ignoreversion
-
-; 4. Root Registration Script
-Source: "install_services.ps1"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
 Name: "{group}\ServeQueue Admin"; Filename: "{app}\Frontend\ServeQueue.exe"; Parameters: "--admin"
 Name: "{group}\ServeQueue Terminal"; Filename: "{app}\Frontend\ServeQueue.exe"; Parameters: "--terminal"
 Name: "{commondesktop}\ServeQueue Admin"; Filename: "{app}\Frontend\ServeQueue.exe"; Parameters: "--admin"; Tasks: desktopicon
 Name: "{commondesktop}\ServeQueue Terminal"; Filename: "{app}\Frontend\ServeQueue.exe"; Parameters: "--terminal"; Tasks: desktopicon
+; The bridge needs an interactive session for hardware access, so it auto-starts
+; from the common Startup folder (not as a Windows service).
 Name: "{commonstartup}\ServeQueue Biometric Bridge"; Filename: "{app}\Bridge\BiometricBridge.exe"; WorkingDir: "{app}\Bridge"
 
 [Run]
-; 1. Update Database
-Filename: "powershell.exe"; Parameters: "-ExecutionPolicy Bypass -File ""{app}\Backend\scripts\setup-db.ps1"" -SqlFile ""{app}\Backend\init_db.sql"""; Flags: waituntilterminated; StatusMsg: "Updating PostgreSQL Database Schema..."
-
-; 2. Register background services
-Filename: "powershell.exe"; Parameters: "-ExecutionPolicy Bypass -File ""{app}\install_services.ps1"""; Flags: waituntilterminated; StatusMsg: "Registering background services..."
-; Launch the app after install
+; Start the bridge and launch the app. No database/backend setup -- the backend
+; lives on Railway; the terminal reaches it over the network.
+Filename: "{app}\Bridge\BiometricBridge.exe"; Description: "Start Biometric Hardware Bridge"; Flags: nowait skipifsilent; WorkingDir: "{app}\Bridge"
 Filename: "{app}\Frontend\ServeQueue.exe"; Description: "Launch ServeQueue Admin Panel"; Flags: postinstall nowait skipifsilent unchecked; Parameters: "--admin"
 Filename: "{app}\Frontend\ServeQueue.exe"; Description: "Launch ServeQueue Terminal"; Flags: postinstall nowait skipifsilent; Parameters: "--terminal"
-Filename: "{app}\Bridge\BiometricBridge.exe"; Description: "Start Biometric Hardware Bridge"; Flags: postinstall nowait skipifsilent; WorkingDir: "{app}\Bridge"
-
-[UninstallRun]
-; Stop and remove background services
-Filename: "powershell.exe"; Parameters: "-ExecutionPolicy Bypass -File ""{app}\Backend\scripts\uninstall-service.ps1"""; Flags: runhidden waituntilterminated
-Filename: "powershell.exe"; Parameters: "-ExecutionPolicy Bypass -File ""{app}\Bridge\scripts\uninstall-service.ps1"""; Flags: runhidden waituntilterminated

@@ -1,6 +1,6 @@
 {
   "name": "secure-access-app",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "main": "index.js",
   "scripts": {
     "start": "expo start",
@@ -29,7 +29,7 @@
       "package.json"
     ],
     "win": {
-      "icon": "assets/serveQueue.png",
+      "icon": "assets/serveQueue.ico",
       "target": [
         "nsis",
         "portable"
