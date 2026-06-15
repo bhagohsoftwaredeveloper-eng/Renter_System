@@ -1,9 +1,26 @@
 class SystemController {
-  constructor(resetData, exportDataExcel, exportDataSQL, systemSettingsRepository) {
+  constructor(resetData, exportDataExcel, exportDataSQL, systemSettingsRepository, importDataSQL) {
     this.resetData = resetData;
     this.exportDataExcel = exportDataExcel;
     this.exportDataSQL = exportDataSQL;
     this.systemSettingsRepository = systemSettingsRepository;
+    this.importDataSQL = importDataSQL;
+  }
+
+  // Restore a backup .sql (multipart file field "file", or raw { sql } body)
+  // into the database. Admin-only.
+  async importSQL(req, res) {
+    try {
+      const sql = req.file ? req.file.buffer.toString('utf8') : (req.body && req.body.sql) || '';
+      if (!sql.trim()) {
+        return res.status(400).json({ error: 'No SQL file provided.' });
+      }
+      await this.importDataSQL.execute(sql);
+      res.status(200).json({ success: true, message: 'Database imported successfully.' });
+    } catch (error) {
+      console.error('Error importing SQL:', error.message);
+      res.status(error.statusCode || 500).json({ error: error.message });
+    }
   }
 
   async reset(req, res) {

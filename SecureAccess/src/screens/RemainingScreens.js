@@ -2782,6 +2782,7 @@ export const Configuration = () => {
   const [printerMenuVisible, setPrinterMenuVisible] = useState(false);
   const [resetDialogVisible, setResetDialogVisible] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
   // Push notification (Expo) configuration
   const [pushEnabled, setPushEnabled] = useState(true);
   const [pushNotificationTitle, setPushNotificationTitle] = useState('Meal Ticket Used');
@@ -3066,6 +3067,43 @@ export const Configuration = () => {
     } else {
       Alert.alert('Not Supported', 'Excel backup is currently only supported on the Web/Desktop version.');
     }
+  };
+
+  // Restore a backup .sql into the (cloud) database. Pick a file, confirm — since
+  // it overwrites existing data — then upload it to the backend, which runs it in
+  // a transaction against the Railway database.
+  const handleImportSQL = () => {
+    if (Platform.OS !== 'web') {
+      Alert.alert('Not Supported', 'SQL import is currently only supported on the Web/Desktop version.');
+      return;
+    }
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.sql,text/plain';
+    input.onchange = async (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+      const ok = window.confirm(
+        `Import "${file.name}" into the database?\n\nThis replaces the current registrations, meal tickets, access logs and users with the data in the file. This cannot be undone.`
+      );
+      if (!ok) return;
+
+      setIsImporting(true);
+      try {
+        const form = new FormData();
+        form.append('file', file);
+        const res = await axios.post(`${API_BASE_URL}/system/import/sql`, form, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        });
+        showSnackbar(res.data?.message || 'Database imported successfully.', 'success');
+      } catch (error) {
+        const msg = error.response?.data?.error || error.message;
+        showSnackbar(`Import failed: ${msg}`, 'error');
+      } finally {
+        setIsImporting(false);
+      }
+    };
+    input.click();
   };
 
   return (
@@ -3514,9 +3552,9 @@ export const Configuration = () => {
                 >
                   Backup to SQL
                 </Button>
-                <Button 
-                  mode="outlined" 
-                  icon="file-excel-outline" 
+                <Button
+                  mode="outlined"
+                  icon="file-excel-outline"
                   onPress={handleBackupExcel}
                   style={{ flex: 1, borderRadius: 12, borderColor: colors.slate200 }}
                   textColor={colors.emerald600}
@@ -3524,6 +3562,17 @@ export const Configuration = () => {
                   Backup to Excel
                 </Button>
               </View>
+
+              <Button
+                mode="contained-tonal"
+                icon="database-import"
+                onPress={handleImportSQL}
+                loading={isImporting}
+                disabled={isImporting}
+                style={{ borderRadius: 12 }}
+              >
+                Import from SQL (restore to cloud database)
+              </Button>
 
               <Divider />
 

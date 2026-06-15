@@ -29,6 +29,23 @@ class PostgresSystemRepository extends SystemRepository {
     // List of tables we want to include in backups
     return ['users', 'registrations', 'meal_tickets', 'access_logs', 'audit_logs'];
   }
+
+  // Run a backup .sql script (TRUNCATE + INSERT) in a single transaction so a
+  // malformed file rolls back cleanly instead of half-importing.
+  async importSql(sql) {
+    const client = await this.db.pool.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query(sql);
+      await client.query('COMMIT');
+      return { success: true };
+    } catch (err) {
+      try { await client.query('ROLLBACK'); } catch (_) {}
+      throw err;
+    } finally {
+      client.release();
+    }
+  }
 }
 
 module.exports = PostgresSystemRepository;

@@ -96,6 +96,7 @@ const PostgresSystemRepository = require('./src/infrastructure/repositories/Post
 const ResetData = require('./src/application/use-cases/ResetData');
 const ExportDataExcel = require('./src/application/use-cases/ExportDataExcel');
 const ExportDataSQL = require('./src/application/use-cases/ExportDataSQL');
+const ImportDataSQL = require('./src/application/use-cases/ImportDataSQL');
 const SystemController = require('./src/interfaces/controllers/SystemController');
 const createSystemRoutes = require('./src/interfaces/routes/systemRoutes');
 
@@ -149,6 +150,7 @@ const getReportSummary = new GetReportSummary(registrationRepository, accessLogR
 const resetData = new ResetData(systemRepository);
 const exportDataExcel = new ExportDataExcel(systemRepository);
 const exportDataSQL = new ExportDataSQL(systemRepository);
+const importDataSQL = new ImportDataSQL(systemRepository);
 
 const registrationController = new RegistrationController(
   getRegistrations,
@@ -168,7 +170,7 @@ const mealTicketController = new MealTicketController(generateMealTicket, getMea
 const accessLogController = new AccessLogController(getAccessLogs, createAccessLog);
 const auditLogController = new AuditLogController(getAuditLogs, createAuditLog);
 const reportController = new ReportController(getReportSummary);
-const systemController = new SystemController(resetData, exportDataExcel, exportDataSQL, systemSettingsRepository);
+const systemController = new SystemController(resetData, exportDataExcel, exportDataSQL, systemSettingsRepository, importDataSQL);
 const pushController = new PushController(registerPushToken, pushTokenRepository, getRenterAlerts);
 const emailService = new EmailService();
 const registrationQrController = new RegistrationQrController(registrationRepository, emailService);
