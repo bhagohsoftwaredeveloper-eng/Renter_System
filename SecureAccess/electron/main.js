@@ -2,6 +2,11 @@ const { app, BrowserWindow, Menu, ipcMain } = require('electron');
 const path = require('path');
 const url = require('url');
 
+// The UI is local bundled assets, so Chromium's HTTP disk cache buys nothing but
+// can corrupt on unclean shutdown / AV locks, spamming "net\disk_cache ... Critical
+// error found -8". Disable it to remove that class of error. Must run before ready.
+app.commandLine.appendSwitch('disable-http-cache');
+
 // Prevent multiple instances from running
 const gotTheLock = app.requestSingleInstanceLock();
 
