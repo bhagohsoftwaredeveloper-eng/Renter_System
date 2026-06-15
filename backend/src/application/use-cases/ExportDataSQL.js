@@ -26,6 +26,12 @@ class ExportDataSQL {
 
           sqlContent += `INSERT INTO ${table} (${keys.join(', ')}) VALUES (${values.join(', ')});\n`;
         }
+
+        // Inserting explicit ids does not advance the SERIAL sequence, so re-sync
+        // it to MAX(id) — otherwise the next auto-insert collides on the pkey.
+        if (Object.keys(data[0]).includes('id')) {
+          sqlContent += `SELECT setval(pg_get_serial_sequence('${table}', 'id'), GREATEST((SELECT COALESCE(MAX(id), 1) FROM ${table}), 1));\n`;
+        }
         sqlContent += '\n';
       }
     }

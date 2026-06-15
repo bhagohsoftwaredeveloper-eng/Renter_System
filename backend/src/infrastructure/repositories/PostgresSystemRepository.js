@@ -32,11 +32,32 @@ class PostgresSystemRepository extends SystemRepository {
 
   // Run a backup .sql script (TRUNCATE + INSERT) in a single transaction so a
   // malformed file rolls back cleanly instead of half-importing.
+  //
+  // Backups INSERT explicit ids, which does NOT advance the SERIAL sequences, so
+  // afterwards the next auto-insert would collide (duplicate key on *_pkey). We
+  // re-sync every serial id sequence to MAX(id) at the end so new scans keep
+  // working — this self-heals even older backup files that lack setval lines.
   async importSql(sql) {
     const client = await this.db.pool.connect();
     try {
       await client.query('BEGIN');
       await client.query(sql);
+      await client.query(`
+        DO $$
+        DECLARE r RECORD;
+        BEGIN
+          FOR r IN
+            SELECT table_name FROM information_schema.columns
+            WHERE table_schema = 'public' AND column_name = 'id'
+              AND column_default LIKE 'nextval%'
+          LOOP
+            EXECUTE format(
+              'SELECT setval(pg_get_serial_sequence(%L, ''id''), GREATEST((SELECT COALESCE(MAX(id), 1) FROM %I), 1))',
+              r.table_name, r.table_name
+            );
+          END LOOP;
+        END $$;
+      `);
       await client.query('COMMIT');
       return { success: true };
     } catch (err) {
