@@ -111,7 +111,7 @@ export default function LoginScreen({ onLogin }) {
       }
     }
     if (!reg || !ph) {
-      setError('That QR code is not a valid Renter Notify code. Enter your details manually.');
+      setError('That QR code is not a valid ZT Notify code. Enter your details manually.');
       return;
     }
     setRegistrationNumber(reg);
@@ -129,7 +129,7 @@ export default function LoginScreen({ onLogin }) {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <View style={styles.card}>
-        <Text style={styles.title}>Renter Notify</Text>
+        <Text style={styles.title}>ZT Notify</Text>
         <Text style={styles.subtitle}>
           Sign in to get meal-ticket alerts on this phone.
         </Text>

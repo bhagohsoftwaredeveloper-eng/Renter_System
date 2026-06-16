@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Renter Notify",
+    "name": "ZT Notify",
     "slug": "renter-notify",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -35,7 +35,7 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Allow Renter Notify to use the camera to scan your QR code."
+          "cameraPermission": "Allow ZT Notify to use the camera to scan your QR code."
         }
       ]
     ],

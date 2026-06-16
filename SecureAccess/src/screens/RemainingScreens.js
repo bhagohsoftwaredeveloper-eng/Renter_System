@@ -483,7 +483,7 @@ export const Registrations = () => {
   };
 
   // Builds a printable PDF of QR cards (one per registration in the current view).
-  // Each renter scans their card in the Renter Notify app to set up alerts.
+  // Each renter scans their card in the ZT Notify app to set up alerts.
   const handlePrintQrCards = async () => {
     try {
       const rows = (filteredData || []).map((r) => ({
@@ -503,11 +503,11 @@ export const Registrations = () => {
           { type: 'svg', margin: 1, color: { dark: '#0F766E', light: '#ffffff' } }
         );
         return `<div class="card">
-          <div class="brand">Renter Notify</div>
+          <div class="brand">ZT Notify</div>
           <div class="qr">${svg}</div>
           <div class="name">${r.name || 'Renter'}</div>
           <div class="reg">Reg #${r.reg}</div>
-          <div class="hint">Open the Renter Notify app &rarr; tap "Scan QR Code"</div>
+          <div class="hint">Open the ZT Notify app &rarr; tap "Scan QR Code"</div>
         </div>`;
       }));
 
@@ -568,7 +568,7 @@ export const Registrations = () => {
     (r) => (r.email || '').trim().length > 0
   ).length;
 
-  // Emails every renter (with an email + phone) their Renter Notify QR code.
+  // Emails every renter (with an email + phone) their ZT Notify QR code.
   // Opens a styled confirmation dialog first, then a result dialog.
   const handleEmailQrToAll = () => setEmailConfirmVisible(true);
 
@@ -969,10 +969,10 @@ export const Registrations = () => {
                     {isViewing && formData.registrationNumber ? (
                       <View style={{ alignItems: 'center', marginBottom: 16, padding: 16, backgroundColor: colors.indigo50, borderRadius: 12 }}>
                         <Text variant="labelMedium" style={{ color: colors.primary, fontWeight: 'bold', marginBottom: 4 }}>
-                          Renter Notify QR
+                          ZT Notify QR
                         </Text>
                         <Text variant="bodySmall" style={{ color: colors.slate400, textAlign: 'center', marginBottom: 12 }}>
-                          The renter scans this in the Renter Notify app to set up meal-ticket alerts — no typing needed.
+                          The renter scans this in the ZT Notify app to set up meal-ticket alerts — no typing needed.
                         </Text>
                         <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 24 }}>
                           {formData.parentPhone ? (
@@ -1213,7 +1213,7 @@ export const Registrations = () => {
           <Dialog.Title style={{ textAlign: 'center' }}>Email QR Codes</Dialog.Title>
           <Dialog.Content>
             <Text variant="bodyMedium" style={{ textAlign: 'center', color: colors.slate600 }}>
-              Send the Renter Notify QR code by email to{' '}
+              Send the ZT Notify QR code by email to{' '}
               <Text style={{ fontWeight: 'bold', color: colors.primary }}>{emailEligibleCount}</Text>
               {' '}renter{emailEligibleCount === 1 ? '' : 's'} who have an email address in the current view.
             </Text>

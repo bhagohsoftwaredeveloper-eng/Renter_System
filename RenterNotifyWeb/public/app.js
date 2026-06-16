@@ -1,4 +1,4 @@
-// Renter Notify — web alerts page.
+// ZT Notify — web alerts page.
 // Sign in with registration number + phone (typed or scanned from the QR), then
 // poll for recent meal-ticket alerts. Alert text + browser notifications use the
 // same configurable ServeQueue templates the Android app receives.
@@ -266,7 +266,7 @@ async function startScan() {
     return;
   }
   signinError.textContent = '';
-  scanHint.textContent = 'Point at your Renter Notify QR code';
+  scanHint.textContent = 'Point at your ZT Notify QR code';
   scanner.style.display = 'flex';
   try {
     scanStream = await navigator.mediaDevices.getUserMedia({
@@ -298,7 +298,7 @@ function scanTick() {
         signIn(reg, ph);
         return;
       }
-      scanHint.textContent = 'That QR is not a Renter Notify code. Try again or enter manually.';
+      scanHint.textContent = 'That QR is not a ZT Notify code. Try again or enter manually.';
     }
   }
   scanRAF = requestAnimationFrame(scanTick);

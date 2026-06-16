@@ -20,7 +20,7 @@ export default function QrScanner({ onScan, onClose }) {
     return (
       <View style={styles.center}>
         <Text style={styles.msg}>
-          Camera access is needed to scan your Renter Notify QR code.
+          Camera access is needed to scan your ZT Notify QR code.
         </Text>
         <TouchableOpacity style={styles.button} onPress={requestPermission}>
           <Text style={styles.buttonText}>Grant Camera Access</Text>
@@ -48,7 +48,7 @@ export default function QrScanner({ onScan, onClose }) {
       />
       <View style={styles.overlay} pointerEvents="none">
         <View style={styles.frame} />
-        <Text style={styles.hint}>Point at your Renter Notify QR code</Text>
+        <Text style={styles.hint}>Point at your ZT Notify QR code</Text>
       </View>
       <TouchableOpacity style={styles.closeButton} onPress={onClose}>
         <Text style={styles.closeText}>Cancel</Text>
