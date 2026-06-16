@@ -3,7 +3,7 @@ const QRCode = require('qrcode');
 
 /**
  * Sends emails via SMTP (nodemailer). Used to deliver each renter their personal
- * Renter Notify QR code so they can set up the app without typing anything.
+ * ZT Notify QR code so they can set up the app without typing anything.
  *
  * Configure via env: SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM.
  * When SMTP_* are unset the service is disabled and calls throw a 503 — keeping
@@ -56,11 +56,11 @@ class EmailService {
 
     const html = `
       <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;color:#0F172A;">
-        <h2 style="color:#0F766E;margin-bottom:4px;">Renter Notify</h2>
+        <h2 style="color:#0F766E;margin-bottom:4px;">ZT Notify</h2>
         <p>Hi ${name || 'there'},</p>
         <p>Set up meal-ticket alerts on your phone in two steps:</p>
         <ol>
-          <li>Install / open the <b>Renter Notify</b> app.</li>
+          <li>Install / open the <b>ZT Notify</b> app.</li>
           <li>Tap <b>"Scan QR Code"</b> and point it at the code below.</li>
         </ol>
         <div style="text-align:center;margin:20px 0;">
@@ -80,7 +80,7 @@ class EmailService {
     await this.transport.sendMail({
       from: this.from,
       to,
-      subject: 'Your Renter Notify QR Code',
+      subject: 'Your ZT Notify QR Code',
       html,
       attachments: [{ filename: 'renternotify-qr.png', content: qrBuffer, cid: 'qr' }],
     });
