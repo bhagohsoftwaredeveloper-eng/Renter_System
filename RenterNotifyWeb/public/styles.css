@@ -31,7 +31,9 @@ body {
 }
 .brand { display: flex; align-items: center; gap: 10px; }
 .brand-icon { width: 32px; height: 32px; border-radius: 8px; }
+.brand-text { display: flex; flex-direction: column; line-height: 1.15; }
 .brand-name { font-weight: 700; font-size: 18px; }
+.brand-sub { font-size: 12px; font-weight: 600; color: var(--muted); }
 .platform-pill {
   font-size: 12px;
   font-weight: 600;
