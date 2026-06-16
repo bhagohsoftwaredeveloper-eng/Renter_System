@@ -11,6 +11,9 @@
     "electron:admin": "electron electron/main.js --admin",
     "electron:terminal": "electron electron/main.js --terminal",
     "build:web": "npx expo export --platform web",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:report": "playwright show-report",
     "package": "npm run build:web && node scripts/fix-paths.js && electron-builder build --win --x64"
   },
   "build": {
@@ -77,6 +80,7 @@
   },
   "private": true,
   "devDependencies": {
+    "@playwright/test": "^1.60.0",
     "@types/react": "~19.2.10",
     "babel-preset-expo": "^55.0.12",
     "electron": "^41.0.3",
