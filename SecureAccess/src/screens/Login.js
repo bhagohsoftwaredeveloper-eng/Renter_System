@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, Image, ScrollView, Dimensions, KeyboardAvoidingView, Platform, TouchableOpacity } from 'react-native';
-import { TextInput, Button, Card, HelperText, useTheme, IconButton } from 'react-native-paper';
+import { TextInput, Button, Card, HelperText, useTheme, IconButton, Portal, Modal } from 'react-native-paper';
 import { colors } from '../theme/colors';
 import { usePermissions } from '../context/PermissionContext';
 import axios from 'axios';
@@ -10,7 +10,7 @@ const { width } = Dimensions.get('window');
 const isWeb = Platform.OS === 'web';
 const isLargeScreen = width > 768;
 
-import { API_BASE_URL } from '../utils/api';
+import { API_BASE_URL, setApiKey, getStoredApiKey } from '../utils/api';
 import { createAuditLog } from '../utils/audit';
 
 export function Login() {
@@ -21,6 +21,34 @@ export function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  // Pre-login network settings — lets a fresh cloud install point at the backend
+  // and set the API key BEFORE logging in (login itself needs them).
+  const [configVisible, setConfigVisible] = useState(false);
+  const [cfgUrl, setCfgUrl] = useState('');
+  const [cfgKey, setCfgKey] = useState('');
+
+  const openConfig = () => {
+    try {
+      setCfgUrl((typeof localStorage !== 'undefined' && localStorage.getItem('BACKEND_URL')) || API_BASE_URL || '');
+      setCfgKey(getStoredApiKey());
+    } catch (e) {
+      setCfgUrl(API_BASE_URL || '');
+    }
+    setConfigVisible(true);
+  };
+
+  const saveConfig = () => {
+    try {
+      const url = (cfgUrl || '').trim();
+      if (url && typeof localStorage !== 'undefined') localStorage.setItem('BACKEND_URL', url);
+      setApiKey(cfgKey); // persists API_KEY + applies it to axios immediately
+    } catch (e) {
+      console.warn('Failed to save network settings', e);
+    }
+    // API_BASE_URL is computed at module load, so reload to pick up the new URL.
+    if (Platform.OS === 'web' && typeof window !== 'undefined') window.location.reload();
+  };
 
   const handleLogin = async () => {
     if (!username || !password) {
@@ -66,6 +94,17 @@ export function Login() {
       style={styles.container}
     >
       <View style={{ height: 48 }} />
+
+      {/* Pre-login network settings (cloud backend URL + API key) */}
+      <IconButton
+        icon="cog"
+        size={24}
+        iconColor={colors.slate500}
+        onPress={openConfig}
+        style={styles.configButton}
+        accessibilityLabel="Network Settings"
+      />
+
       <ScrollView contentContainerStyle={styles.scrollContainer} showsVerticalScrollIndicator={false}>
         <View style={[styles.loginCardContainer, isLargeScreen && styles.largeScreenContainer]}>
           <Card style={styles.card} elevation={4}>
@@ -151,6 +190,57 @@ export function Login() {
           </View>
         </View>
       </ScrollView>
+
+      <Portal>
+        <Modal
+          visible={configVisible}
+          onDismiss={() => setConfigVisible(false)}
+          contentContainerStyle={styles.configModal}
+        >
+          <Text style={styles.configTitle}>Network Settings</Text>
+          <Text style={styles.configSubtitle}>
+            Point this terminal at the backend. For the cloud, use the Railway URL and enter the Backend API Key.
+          </Text>
+
+          <TextInput
+            label="Backend Server URL"
+            value={cfgUrl}
+            onChangeText={setCfgUrl}
+            mode="outlined"
+            placeholder="https://rentersystem-production.up.railway.app/api"
+            autoCapitalize="none"
+            autoCorrect={false}
+            outlineColor={colors.slate300}
+            activeOutlineColor={colors.primary}
+            left={<TextInput.Icon icon="server-network" />}
+            style={styles.configInput}
+          />
+
+          <TextInput
+            label="Backend API Key"
+            value={cfgKey}
+            onChangeText={setCfgKey}
+            mode="outlined"
+            placeholder="Required for the cloud backend"
+            secureTextEntry
+            autoCapitalize="none"
+            autoCorrect={false}
+            outlineColor={colors.slate300}
+            activeOutlineColor={colors.primary}
+            left={<TextInput.Icon icon="key-variant" />}
+            style={styles.configInput}
+          />
+
+          <View style={styles.configActions}>
+            <Button mode="text" onPress={() => setConfigVisible(false)} textColor={colors.slate500}>
+              Cancel
+            </Button>
+            <Button mode="contained" onPress={saveConfig} buttonColor={colors.primary} icon="content-save">
+              Save & Reload
+            </Button>
+          </View>
+        </Modal>
+      </Portal>
     </KeyboardAvoidingView>
   );
 }
@@ -159,6 +249,42 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.slate50,
+  },
+  configButton: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    zIndex: 200,
+  },
+  configModal: {
+    backgroundColor: colors.white,
+    marginHorizontal: 24,
+    alignSelf: 'center',
+    width: '100%',
+    maxWidth: 460,
+    borderRadius: 16,
+    padding: 24,
+  },
+  configTitle: {
+    fontSize: 20,
+    fontFamily: 'PublicSans-Bold',
+    color: colors.slate900,
+    marginBottom: 6,
+  },
+  configSubtitle: {
+    fontSize: 14,
+    color: colors.slate500,
+    marginBottom: 18,
+  },
+  configInput: {
+    backgroundColor: colors.white,
+    marginBottom: 14,
+  },
+  configActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 8,
+    marginTop: 6,
   },
   dragRegion: {
     position: 'absolute',

@@ -15,7 +15,7 @@ Deployed as its own Railway service (separate from the backend).
 | Route          | What it does                                              |
 | -------------- | -------------------------------------------------------- |
 | `/`            | Landing page with a Download button                      |
-| `/download`    | Sends the APK as `Renter-Notify.apk` (503 if none yet)   |
+| `/download`    | Sends the APK as `ZT-Notify.apk` (503 if none yet)   |
 | `/api/release` | JSON: `{ available, fileName, sizeMb, updatedAt }`       |
 | `/health`      | `{ status: "ok" }` for Railway                           |
 
@@ -52,6 +52,6 @@ railway up          # uploads this folder incl. the APK in downloads/
 **B) Deploy from GitHub:** add a new service in the `Renter_system` project,
 repo `JhazonE/Renter_System`, **Root Directory = `RenterNotifyWeb`**. Because
 GitHub deploys won't include the gitignored APK, force-add it once:
-`git add -f RenterNotifyWeb/downloads/Renter-Notify.apk`.
+`git add -f RenterNotifyWeb/downloads/ZT-Notify.apk`.
 
 Railway provides `PORT` automatically; no other env vars are required.

@@ -111,6 +111,13 @@ public class BiometricManager
     public bool IsActive { get; private set; }
     public int ReaderCount { get; private set; }
 
+    // Keep the reader OPEN across captures. Opening EXCLUSIVE re-initializes the
+    // USB device and is by far the slowest step; doing it ONCE instead of on every
+    // scan is the single biggest read-speed win. _readerLock serializes captures so
+    // the idle loop and an explicit scan never touch the same handle at once.
+    private Reader? _openReader;
+    private readonly object _readerLock = new object();
+
     public BiometricManager()
     {
         // Check availability at startup, but don't hold the reader open
@@ -135,30 +142,13 @@ public class BiometricManager
     {
         return await Task.Run(() =>
         {
-            // Get a fresh reader each time — DO NOT cache/reuse a disposed Reader instance
-            ReaderCollection readers;
-            try
+            lock (_readerLock)
             {
-                readers = ReaderCollection.GetReaders();
-                ReaderCount = readers.Count;
-                IsActive = readers.Count > 0;
-            }
-            catch (Exception ex)
-            {
-                throw new Exception($"Failed to enumerate readers: {ex.Message}");
-            }
+                // Reuse the already-open reader (opened ONCE, see EnsureReaderOpen).
+                // The idle loop calls this every cycle, so re-opening here would put
+                // the slow USB init back on every scan — exactly what we removed.
+                Reader reader = EnsureReaderOpen();
 
-            if (readers.Count == 0) throw new Exception("HARDWARE NOT READY. ENSURE READER IS PLUGGED IN.");
-
-            Reader reader = readers[0];
-            Constants.ResultCode openResult = reader.Open(Constants.CapturePriority.DP_PRIORITY_EXCLUSIVE);
-            if (openResult != Constants.ResultCode.DP_SUCCESS)
-                throw new Exception($"Failed to open reader: {openResult}");
-
-            Console.WriteLine("[INFO] Reader opened. Waiting for finger...");
-
-            try
-            {
                 CaptureResult captureResult = reader.Capture(
                     Constants.Formats.Fid.ANSI,
                     Constants.CaptureProcessing.DP_IMG_PROC_DEFAULT,
@@ -166,9 +156,17 @@ public class BiometricManager
                     500);
 
                 if (captureResult.ResultCode != Constants.ResultCode.DP_SUCCESS)
+                {
+                    // A non-success code is a hardware/communication fault (NOT a plain
+                    // no-finger timeout). Drop the cached handle so the next call
+                    // re-opens the reader fresh and recovers.
+                    CloseReader();
                     throw new Exception($"Capture Error: {captureResult.ResultCode}");
+                }
 
                 if (captureResult.Data == null)
+                    // Benign timeout: no finger within the window. Keep the reader OPEN
+                    // so the next idle-loop capture starts instantly.
                     throw new Exception("Capture timed out or no data received.");
 
                 Console.WriteLine("[INFO] Capture complete. Extracting FMD...");
@@ -179,12 +177,49 @@ public class BiometricManager
 
                 throw new Exception($"FMD Extraction Error: {fmdResult.ResultCode}");
             }
-            finally
-            {
-                try { reader.Dispose(); } catch { }
-                Console.WriteLine("[INFO] Reader disposed after capture.");
-            }
         });
+    }
+
+    // Lazily open the reader EXCLUSIVE and cache the handle. Subsequent captures
+    // reuse it instead of paying the USB re-init cost on every scan.
+    // Must be called while holding _readerLock.
+    private Reader EnsureReaderOpen()
+    {
+        if (_openReader != null) return _openReader;
+
+        ReaderCollection readers;
+        try
+        {
+            readers = ReaderCollection.GetReaders();
+            ReaderCount = readers.Count;
+            IsActive = readers.Count > 0;
+        }
+        catch (Exception ex)
+        {
+            throw new Exception($"Failed to enumerate readers: {ex.Message}");
+        }
+
+        if (readers.Count == 0) throw new Exception("HARDWARE NOT READY. ENSURE READER IS PLUGGED IN.");
+
+        Reader reader = readers[0];
+        Constants.ResultCode openResult = reader.Open(Constants.CapturePriority.DP_PRIORITY_EXCLUSIVE);
+        if (openResult != Constants.ResultCode.DP_SUCCESS)
+            throw new Exception($"Failed to open reader: {openResult}");
+
+        Console.WriteLine("[INFO] Reader opened (persistent). Ready for captures.");
+        _openReader = reader;
+        return _openReader;
+    }
+
+    // Dispose and forget the cached reader so the next capture re-opens it.
+    // Must be called while holding _readerLock.
+    private void CloseReader()
+    {
+        if (_openReader == null) return;
+        try { _openReader.Dispose(); } catch { }
+        _openReader = null;
+        IsActive = false;
+        Console.WriteLine("[INFO] Reader closed (will re-open on next capture).");
     }
 
     public int Identify(string probeBase64, List<string> candidatesBase64)

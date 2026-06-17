@@ -29,6 +29,13 @@ import { API_BASE_URL, BRIDGE_BASE_URL } from '../utils/api';
 
 const { width, height } = Dimensions.get('window');
 
+// Cache of enrolled biometric candidates pulled from the cloud. Re-downloading the
+// full template list on EVERY read is the only internet-dependent step in the read
+// path; templates change only when an admin enrols/updates a renter, so a short TTL
+// is safe. On a no-match we still refetch once (a renter may have just been enrolled).
+let candidateCache = { data: null, at: 0 };
+const CANDIDATE_TTL_MS = 60000;
+
 export const BiometricTerminal = ({ onExit, registrationId = null }) => {
   const [status, setStatus] = useState('IDLE'); // IDLE, SCANNING, SUCCESS, ERROR
   const [progress, setProgress] = useState(0);
@@ -138,10 +145,16 @@ export const BiometricTerminal = ({ onExit, registrationId = null }) => {
     }
     
     try {
-      const isRunning = await BiometricService.isServiceRunning();
-      if (!isRunning) {
-        if (isSilent) return;
-        throw new Error('SYSTEM ERROR: BIOMETRIC SERVICE NOT DETECTED. PLEASE ENSURE THE BRIDGE ON PORT 5003 IS RUNNING.');
+      // Only pre-flight the service health on an EXPLICIT scan, where we want a clear
+      // "bridge not running" message before capturing. The silent idle loop skips it:
+      // it runs every ~100ms, and the bridge-only capture below already fails fast and
+      // resets when the bridge is unreachable — so the extra /health round trip each
+      // cycle was pure latency.
+      if (!isSilent) {
+        const isRunning = await BiometricService.isServiceRunning();
+        if (!isRunning) {
+          throw new Error('SYSTEM ERROR: BIOMETRIC SERVICE NOT DETECTED. PLEASE ENSURE THE BRIDGE ON PORT 5003 IS RUNNING.');
+        }
       }
 
       console.log(`Initiating SDK capture (${isSilent ? 'Silent' : 'Active'})...`);
@@ -213,9 +226,12 @@ export const BiometricTerminal = ({ onExit, registrationId = null }) => {
       // startScan handles its own UI errors; nothing to do here.
     } finally {
       scanningRef.current = false;
-      // If still idle and still enabled, queue the next listen (gentle delay).
+      // If still idle and still enabled, queue the next listen almost immediately.
+      // The bridge keeps the reader OPEN now, so re-listening is cheap; a long gap
+      // here is pure dead time where a placed finger goes unread. Keep it tiny
+      // (just enough to avoid a tight loop / yield to the event loop).
       if (autoScanRef.current && statusRef.current === 'IDLE') {
-        idleTimerRef.current = setTimeout(idleScanLoop, 1000);
+        idleTimerRef.current = setTimeout(idleScanLoop, 100);
       }
     }
   };
@@ -223,7 +239,7 @@ export const BiometricTerminal = ({ onExit, registrationId = null }) => {
   // (Re)start the idle loop whenever we enter IDLE with auto-scan enabled.
   useEffect(() => {
     if (status === 'IDLE' && autoScan) {
-      idleTimerRef.current = setTimeout(idleScanLoop, 300);
+      idleTimerRef.current = setTimeout(idleScanLoop, 100);
     }
     return () => {
       if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
@@ -256,14 +272,18 @@ export const BiometricTerminal = ({ onExit, registrationId = null }) => {
     }
   };
 
-  // Resolve which renter a captured fingerprint belongs to, using the LOCAL
-  // bridge for FMD matching (the cloud backend can't reach the bridge). Returns
-  // the matched registration id, or null if not recognized.
-  const identifyViaBridge = async (fmdTemplate) => {
-    // Pull enrolled templates from a kiosk-safe endpoint (x-api-key only, no
-    // admin login required) so the terminal works even without an auth session.
+  // Identify uses the LOCAL bridge for FMD matching (the cloud backend can't reach
+  // the bridge). Templates are pulled from a kiosk-safe endpoint (x-api-key only, no
+  // admin login required) so the terminal works even without an auth session.
+  const fetchCandidates = async () => {
     const res = await axios.get(`${API_BASE_URL}/meal-tickets/biometric-candidates`);
-    const all = res.data || [];
+    candidateCache = { data: res.data || [], at: Date.now() };
+    return candidateCache.data;
+  };
+
+  // Run the local FMD match for one captured probe against the given enrolled list.
+  // Returns the matched registration id, or null if not recognized.
+  const matchAgainst = async (all, fmdTemplate) => {
     const tplOf = (r) => r.biometricTemplate || r.biometric_template;
     let candidates;
     if (registrationId) {
@@ -287,6 +307,20 @@ export const BiometricTerminal = ({ onExit, registrationId = null }) => {
       return candidates[d.matchedIndex].id;
     }
     return null;
+  };
+
+  const identifyViaBridge = async (fmdTemplate) => {
+    const cacheFresh = candidateCache.data && (Date.now() - candidateCache.at) < CANDIDATE_TTL_MS;
+    let all = cacheFresh ? candidateCache.data : await fetchCandidates();
+
+    let matched = await matchAgainst(all, fmdTemplate);
+    // No match against CACHED data? The renter may have just been enrolled — refetch
+    // fresh once before giving up, so newcomers aren't blocked until the TTL expires.
+    if (matched === null && cacheFresh) {
+      all = await fetchCandidates();
+      matched = await matchAgainst(all, fmdTemplate);
+    }
+    return matched;
   };
 
   const handleGenerateMealTicket = async (fmdTemplate) => {

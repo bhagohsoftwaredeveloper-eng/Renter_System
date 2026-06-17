@@ -1,4 +1,4 @@
-; ServeQueue Unified Installer Script (v1.3.0)
+; ServeQueue Unified Installer Script (v1.3.2)
 ; Bundles the Frontend (Electron) + Biometric Bridge only.
 ; The Backend + Postgres now run on Railway cloud, so the installer no longer
 ; ships a local server.exe or sets up a local database. Configure the cloud URL
@@ -6,12 +6,12 @@
 
 [Setup]
 AppName=ServeQueue
-AppVersion=1.3.0
+AppVersion=1.3.2
 AppPublisher=ServeQueue Team
 DefaultDirName={autopf}\ServeQueue
 DefaultGroupName=ServeQueue
 OutputDir=.
-OutputBaseFilename=ServeQueue_v1.3.0_Setup
+OutputBaseFilename=ServeQueue_v1.3.2_Setup
 Compression=lzma
 SolidCompression=yes
 PrivilegesRequired=admin

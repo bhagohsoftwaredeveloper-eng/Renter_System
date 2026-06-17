@@ -14,6 +14,10 @@ import axios from 'axios';
 const LOCAL_HOST = 'localhost';
 const EMULATOR_HOST = '10.0.2.2'; // Standard Android emulator loopback to host
 
+// Default cloud backend (Railway). Used when no BACKEND_URL override is set, so a
+// fresh cloud-only install points at the cloud out of the box.
+const CLOUD_BACKEND_URL = 'https://rentersystem-production.up.railway.app/api';
+
 // The cloud backend. Set BACKEND_URL in Settings → Network Configuration (plus
 // the Backend API Key) to point this terminal at the cloud.
 //   https://rentersystem-production.up.railway.app/api
@@ -29,7 +33,9 @@ const getBaseUrl = () => {
     } catch (e) {
       console.warn('Failed to read BACKEND_URL from localStorage', e);
     }
-    return `http://${LOCAL_HOST}:5005/api`;
+    // Cloud-only default: the backend now lives on Railway. Terminals can still
+    // override this in Login → Network Settings or Configuration (localStorage).
+    return CLOUD_BACKEND_URL;
   }
   return `http://${EMULATOR_HOST}:5005/api`;
 };

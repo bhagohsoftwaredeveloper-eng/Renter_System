@@ -79,7 +79,7 @@ app.get('/download', (req, res) => {
       .type('text/plain')
       .send('The APK has not been uploaded yet. Please try again after the app is built.');
   }
-  res.download(apk.full, 'Renter-Notify.apk');
+  res.download(apk.full, 'ZT-Notify.apk');
 });
 
 // Static landing page + assets.
