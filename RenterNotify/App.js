@@ -4,7 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import * as Notifications from 'expo-notifications';
 import LoginScreen from './src/screens/LoginScreen';
 import HomeScreen from './src/screens/HomeScreen';
-import { loadSession, loadAlerts, saveAlerts } from './src/storage';
+import { loadSession, loadAlerts, saveAlerts, ALERTS_RETENTION_MS } from './src/storage';
 
 // Format a moment in Philippine time (Asia/Manila), regardless of device locale.
 const phReceivedAt = (d) =>
@@ -29,18 +29,18 @@ export default function App() {
     (async () => {
       const stored = await loadSession();
       if (stored) setSession(stored);
-      const alerts = await loadAlerts(); // already pruned to the last 24h
+      const alerts = await loadAlerts(); // already pruned to the last 30 days
       setNotifications(alerts);
       setBooting(false);
     })();
   }, []);
 
-  // Add an alert to the list (PH time), keep only the last 24h, and persist it.
+  // Add an alert to the list (PH time), keep only the last 30 days, and persist it.
   const addAlert = (title, body) => {
     const now = new Date();
     const alert = { title, body, at: now.getTime(), receivedAt: phReceivedAt(now) };
     setNotifications((prev) => {
-      const cutoff = Date.now() - 24 * 60 * 60 * 1000;
+      const cutoff = Date.now() - ALERTS_RETENTION_MS;
       const next = [alert, ...prev].filter((a) => a.at && a.at >= cutoff);
       saveAlerts(next);
       return next;
