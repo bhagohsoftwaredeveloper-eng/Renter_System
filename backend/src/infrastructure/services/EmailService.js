@@ -60,9 +60,16 @@ class EmailService {
         <p>Hi ${name || 'there'},</p>
         <p>Set up meal-ticket alerts on your phone in two steps:</p>
         <ol>
-          <li>Install / open the <b>ZT Notify</b> app.</li>
-          <li>Tap <b>"Scan QR Code"</b> and point it at the code below.</li>
+          <li>Install the <b>ZT Notify</b> app — download it at
+            <a href="https://zenithtowers.app" style="color:#0F766E;font-weight:700;">zenithtowers.app</a>.</li>
+          <li>Open the app, tap <b>"Scan QR Code"</b> and point it at the code below.</li>
         </ol>
+        <div style="text-align:center;margin:20px 0;">
+          <a href="https://zenithtowers.app"
+             style="display:inline-block;background:#0F766E;color:#ffffff;text-decoration:none;font-weight:700;padding:12px 28px;border-radius:8px;font-size:15px;">
+            Download ZT Notify
+          </a>
+        </div>
         <div style="text-align:center;margin:20px 0;">
           <img src="cid:qr" alt="Your QR code" style="width:240px;height:240px;"/>
         </div>
